@@ -1,13 +1,19 @@
 #pragma once
 
-#include "DeckLinkAPI.h"
+#include <queue>
+
+#include <opencv2/core/core.hpp>
+
+#include <DeckLinkAPI.h>
+#include "ThreadSynchronizer.h"
+
 
 namespace libvideoio_bm {
 
   class DeckLinkCaptureDelegate : public IDeckLinkInputCallback
   {
   public:
-    DeckLinkCaptureDelegate();
+    DeckLinkCaptureDelegate( unsigned int maxFrames = -1 );
 
     virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, LPVOID *ppv) { return E_NOINTERFACE; }
     virtual ULONG STDMETHODCALLTYPE AddRef(void);
@@ -15,8 +21,18 @@ namespace libvideoio_bm {
     virtual HRESULT STDMETHODCALLTYPE VideoInputFormatChanged(BMDVideoInputFormatChangedEvents, IDeckLinkDisplayMode*, BMDDetectedVideoInputFormatFlags);
     virtual HRESULT STDMETHODCALLTYPE VideoInputFrameArrived(IDeckLinkVideoInputFrame*, IDeckLinkAudioInputPacket*);
 
+    ThreadSynchronizer &imageReady() { return _imageReady; }
+    cv::Mat popImage();
+
   private:
-    int32_t m_refCount;
+    int32_t _refCount;
+
+    unsigned int _frameCount, _maxFrames;
+
+
+        ThreadSynchronizer _imageReady;
+        std::queue< cv::Mat > _imageQueue;
+
   };
 
 }

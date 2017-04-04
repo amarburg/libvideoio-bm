@@ -1,6 +1,7 @@
 #pragma once
 
 #include "libvideoio/DataSource.h"
+#include "Delegate.h"
 
 #include <DeckLinkAPI.h>
 
@@ -33,6 +34,8 @@ public:
   virtual ImageSize imageSize( void ) const;
 
 protected:
+
+  cv::Mat _grabbedImage;
 
   bool _initialized;
 

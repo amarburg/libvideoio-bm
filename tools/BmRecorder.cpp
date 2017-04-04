@@ -137,6 +137,10 @@ int main( int argc, char** argv )
 		std::chrono::steady_clock::time_point loopStart( std::chrono::steady_clock::now() );
 		if( (duration > 0) && (loopStart > end) ) { keepGoing = false;  break; }
 
+		if( decklink->grab() ) {
+			cv::Mat image;
+			decklink->getImage(0, image);
+
 	// 	if( !camera->grab( sl::zed::STANDARD, false, false, false ) ) {
 	// 		const bool doDisplayThisFrame = (doDisplay && (count % skip == 0));
 	//
@@ -175,11 +179,11 @@ int main( int argc, char** argv )
 	// 		++count;
 	// 		std::this_thread::sleep_for(std::chrono::microseconds(1));
 	//
-	// 	} else {
-	// 		// if grab() fails
-	// 		++miss;
-	// 		std::this_thread::sleep_for(std::chrono::microseconds(100));
-	// 	}
+		} else {
+			// if grab() fails
+			++miss;
+			std::this_thread::sleep_for(std::chrono::microseconds(100));
+		}
 
 	// 		//			if( dt_us > 0 ) {
 	// 		//				std::chrono::steady_clock::time_point sleepTarget( loopStart + std::chrono::microseconds( dt_us ) );
