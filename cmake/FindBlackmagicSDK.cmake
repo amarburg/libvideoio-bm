@@ -8,11 +8,11 @@
 find_package(PkgConfig)
 
 # They use per-OS trees
-if(APPLE)
+if(LINUX OR BLACKMAGIC_FORCE_LINUX) 
+  SET( BM_ARCH "Linux" )
+elseif(APPLE)
   SET( BM_ARCH "Mac" )
   SET( BLACKMAGIC_LIBS "-framework CoreFoundation" )
-elseif(LINUX)
-  SET( BM_ARCH "Linux" )
 else()
   SET( BM_ARCH "Win" )
 endif()

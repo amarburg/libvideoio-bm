@@ -1,7 +1,11 @@
 
+#include <string>
+
 #include "libvideoio_bm/DeckLinkSource.h"
 
 namespace libvideoio_bm {
+
+  using std::string;
 
   DeckLinkSource::DeckLinkSource()
   : DataSource(),
@@ -26,7 +30,7 @@ namespace libvideoio_bm {
     deckLinkIterator = CreateDeckLinkIteratorInstance();
     if (!deckLinkIterator)
     {
-      LOG(FATAL) << "This application requires the DeckLink drivers installed.";
+      LOG(WARNING) << "This application requires the DeckLink drivers installed.";
       return;
     }
 
@@ -42,69 +46,99 @@ namespace libvideoio_bm {
     // }
 
     // Use first device
-    if ((result = deckLinkIterator->Next(&deckLink)) != S_OK) {
-      LOG(FATAL) << "Couldn't get information on the first DeckLink object.";
+    if( (result = deckLinkIterator->Next(&deckLink)) != S_OK) {
+      LOG(WARNING) << "Couldn't get information on the first DeckLink object.";
       return;
     }
+
+    char modelName[255], displayName[255];
+    if( deckLink->GetModelName( (const char **)&modelName ) != S_OK ) {
+      LOG(WARNING) << "Unable to query model name.";
+      return;
+    }
+
+    if( deckLink->GetDisplayName( (const char **)&displayName ) != S_OK ) {
+      LOG(WARNING) << "Unable to query display name.";
+      return;
+    }
+
+    LOG(INFO) << "Using model \"" << modelName << "\" with display name \"" << displayName << "\"";
 
     // Get the input (capture) interface of the DeckLink device
     result = deckLink->QueryInterface(IID_IDeckLinkInput, (void**)&_deckLinkInput);
     if (result != S_OK) {
-      LOG(FATAL) << "Couldn't get input for Decklink";
+      LOG(WARNING) << "Couldn't get input for Decklink";
       return;
     }
 
+    IDeckLinkAttributes* deckLinkAttributes = NULL;
+    bool formatDetectionSupported;
     //      // Get the display mode
     //       if (g_config.m_displayModeIndex == -1)
     //       {
-    //               // Check the card supports format detection
-    //               result = deckLink->QueryInterface(IID_IDeckLinkAttributes, (void**)&deckLinkAttributes);
-    //               if (result == S_OK)
-    //               {
-    //                       result = deckLinkAttributes->GetFlag(BMDDeckLinkSupportsInputFormatDetection, &formatDetectionSupported);
-    //                       if (result != S_OK || !formatDetectionSupported)
-    //                       {
-    //                               fprintf(stderr, "Format detection is not supported on this device\n");
-    //                               goto bail;
-    //                       }
-    //               }
-    //
-    //               g_config.m_inputFlags |= bmdVideoInputEnableFormatDetection;
-    //
-    //                 // Format detection still needs a valid mode to start with
-    //                 idx = 0;
+    // Check the card supports format detection
+    result = deckLink->QueryInterface(IID_IDeckLinkAttributes, (void**)&deckLinkAttributes);
+    if (result == S_OK)
+    {
+      result = deckLinkAttributes->GetFlag(BMDDeckLinkSupportsInputFormatDetection, &formatDetectionSupported);
+      if (result != S_OK || !formatDetectionSupported)
+      {
+        LOG(WARNING) << "Format detection is not supported on this device";
+        return;
+      }
+    }
+
+    //g_config.m_inputFlags |= bmdVideoInputEnableFormatDetection;
+
+    // Format detection still needs a valid mode to start with
+    //idx = 0;
     //         }
     //         else
     //         {
     //                 idx = g_config.m_displayModeIndex;
     //         }
+
+
+    IDeckLinkDisplayModeIterator* displayModeIterator = NULL;
+    IDeckLinkDisplayMode* displayMode = NULL;
+
+    result = _deckLinkInput->GetDisplayModeIterator(&displayModeIterator);
+    if (result != S_OK) {
+      LOG(WARNING) << "Unable to get DisplayModeIterator";
+      return;
+    }
+
+    // Use first displayMode for now
+    if( displayModeIterator->Next( &displayMode) != S_OK ) {
+      LOG(WARNING) << "Unable to get first DisplayMode";
+      return;
+    }
+
+    // while ((result = displayModeIterator->Next(&displayMode)) == S_OK)
+    // {
+    //         if (idx == 0)
+    //                 break;
+    //         --idx;
     //
-    //         result = g_deckLinkInput->GetDisplayModeIterator(&displayModeIterator);
-    //         if (result != S_OK)
-    //                 goto bail;
+    //         displayMode->Release();
+    // }
     //
-    //         while ((result = displayModeIterator->Next(&displayMode)) == S_OK)
-    //         {
-    //                 if (idx == 0)
-    //                         break;
-    //                 --idx;
+    // if (result != S_OK || displayMode == NULL)
+    // {
+    //         LOG(WARNING) << "Unable to get display mode";
+    //         return;
+    // }
     //
-    //                 displayMode->Release();
-    //         }
-    //
-    //         if (result != S_OK || displayMode == NULL)
-    //         {
-    //                 fprintf(stderr, "Unable to get display mode %d\n", g_config.m_displayModeIndex);
-    //                 goto bail;
-    //         }
-    //
-    //         // Get display mode name
-    //         result = displayMode->GetName((const char**)&displayModeName);
-    //         if (result != S_OK)
-    //
-    //         {
-    //          displayModeName = (char *)malloc(32);
-    //          snprintf(displayModeName, 32, "[index %d]", g_config.m_displayModeIndex);
+    // Get display mode name
+    char displayModeName[255];
+    result = displayMode->GetName((const char **)&displayModeName);
+    if (result != S_OK) {
+      LOG(WARNING) << "Unable to query model name.";
+      return;
+    }
+
+    //  displayModeName = (char *)malloc(32);
+    //  snprintf(displayModeName, 32, "[index %d]", g_config.m_displayModeIndex);
     //  }
     //
     //  // Check display mode is supported with given options
@@ -150,6 +184,8 @@ namespace libvideoio_bm {
     //  if (result != S_OK)
     //          goto bail;
 
+    _initialized = true;
+
   }
 
   bool DeckLinkSource::grab( void )
@@ -182,5 +218,5 @@ namespace libvideoio_bm {
   {
 
   }
-  
+
 }

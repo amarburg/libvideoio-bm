@@ -1,6 +1,11 @@
 # Set source files
 file(GLOB VIDEOIO_DECKLINK_SRCS *.cpp )
 
+# This needs to be set before add_library .. only on OSX?
+if(APPLE)
+  set( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
+endif()
+
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CONAN_INCLUDE_DIRS}

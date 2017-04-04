@@ -1,9 +1,8 @@
 #pragma once
 
+#include "libvideoio/DataSource.h"
 
 #include <DeckLinkAPI.h>
-
-#include "libvideoio/DataSource.h"
 
 namespace libvideoio_bm {
 
@@ -20,6 +19,8 @@ public:
   void initialize();
 
   bool initialized() const { return _initialized; }
+
+  virtual int numFrames( void ) const { return -1; }
 
   // Delete copy operators
   DeckLinkSource( const DeckLinkSource & ) = delete;

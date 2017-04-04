@@ -20,6 +20,7 @@ set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 find_package(OpenCV ${OPENCV_VERSION} COMPONENTS ${OPENCV_COMPONENTS} REQUIRED)
 
 ## Find Blackmagic SDK
+set( BLACKMAGIC_FORCE_LINUX TRUE )
 find_package( BlackmagicSDK REQUIRED )
 
 ## Set global include paths
