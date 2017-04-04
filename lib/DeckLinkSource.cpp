@@ -51,7 +51,7 @@ namespace libvideoio_bm {
       return;
     }
 
-    char modelName[255], displayName[255];
+    char *modelName, *displayName;
     if( deckLink->GetModelName( (const char **)&modelName ) != S_OK ) {
       LOG(WARNING) << "Unable to query model name.";
       return;
@@ -63,6 +63,9 @@ namespace libvideoio_bm {
     }
 
     LOG(INFO) << "Using model \"" << modelName << "\" with display name \"" << displayName << "\"";
+
+    free(modelName);
+    free(displayName);
 
     // Get the input (capture) interface of the DeckLink device
     result = deckLink->QueryInterface(IID_IDeckLinkInput, (void**)&_deckLinkInput);
@@ -114,6 +117,28 @@ namespace libvideoio_bm {
       return;
     }
 
+    char *displayModeName = nullptr;
+    if( displayMode->GetName( (const char **)&displayModeName) != S_OK ) {
+      LOG(WARNING) << "Unable to get name of DisplayMode";
+      return;
+    }
+
+    BMDTimeValue timeValue = 0;
+    BMDTimeScale timeScale = 0;
+
+      if( displayMode->GetFrameRate( &timeValue, &timeScale ) != S_OK ) {
+        LOG(WARNING) << "Unable to get DisplayMode frame rate";
+        return;
+      }
+
+      float frameRate = (timeScale != 0) ? timeValue/timeScale : timeValue;
+
+    LOG(INFO) << "Using display mode \"" << displayModeName << "\"    " <<
+                displayMode->GetWidth() << " x " << displayMode->GetHeight() <<
+                ", " << frameRate;
+
+    free( displayModeName );
+
     // while ((result = displayModeIterator->Next(&displayMode)) == S_OK)
     // {
     //         if (idx == 0)
@@ -130,12 +155,12 @@ namespace libvideoio_bm {
     // }
     //
     // Get display mode name
-    char displayModeName[255];
-    result = displayMode->GetName((const char **)&displayModeName);
-    if (result != S_OK) {
-      LOG(WARNING) << "Unable to query model name.";
-      return;
-    }
+    // char displayModeName[255];
+    // result = displayMode->GetName((const char **)&displayModeName);
+    // if (result != S_OK) {
+    //   LOG(WARNING) << "Unable to query model name.";
+    //   return;
+    // }
 
     //  displayModeName = (char *)malloc(32);
     //  snprintf(displayModeName, 32, "[index %d]", g_config.m_displayModeIndex);
