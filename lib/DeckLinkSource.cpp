@@ -103,7 +103,7 @@ namespace libvideoio_bm {
 
 
     IDeckLinkDisplayModeIterator* displayModeIterator = NULL;
-    IDeckLinkDisplayMode* displayMode = NULL;
+    IDeckLinkDisplayMode *displayMode = NULL, *displayModeItr = NULL;
 
     result = _deckLinkInput->GetDisplayModeIterator(&displayModeIterator);
     if (result != S_OK) {
@@ -112,60 +112,50 @@ namespace libvideoio_bm {
     }
 
     // Use first displayMode for now
-    if( displayModeIterator->Next( &displayMode) != S_OK ) {
-      LOG(WARNING) << "Unable to get first DisplayMode";
-      return;
-    }
+    while( displayModeIterator->Next( &displayModeItr ) == S_OK ) {
 
-    char *displayModeName = nullptr;
-    if( displayMode->GetName( (const char **)&displayModeName) != S_OK ) {
-      LOG(WARNING) << "Unable to get name of DisplayMode";
-      return;
-    }
 
-    BMDTimeValue timeValue = 0;
-    BMDTimeScale timeScale = 0;
+      char *displayModeName = nullptr;
+      if( displayModeItr->GetName( (const char **)&displayModeName) != S_OK ) {
+        LOG(WARNING) << "Unable to get name of DisplayMode";
+        return;
+      }
 
-      if( displayMode->GetFrameRate( &timeValue, &timeScale ) != S_OK ) {
+      BMDTimeValue timeValue = 0;
+      BMDTimeScale timeScale = 0;
+
+      if( displayModeItr->GetFrameRate( &timeValue, &timeScale ) != S_OK ) {
         LOG(WARNING) << "Unable to get DisplayMode frame rate";
         return;
       }
 
-      float frameRate = (timeScale != 0) ? timeValue/timeScale : timeValue;
+      float frameRate = (timeScale != 0) ? float(timeValue)/timeScale : float(timeValue);
 
-    LOG(INFO) << "Using display mode \"" << displayModeName << "\"    " <<
-                displayMode->GetWidth() << " x " << displayMode->GetHeight() <<
-                ", " << frameRate;
+      LOG(INFO) << "Using display mode \"" << displayModeName << "\"    " <<
+      displayModeItr->GetWidth() << " x " << displayModeItr->GetHeight() <<
+      ", " << frameRate;
 
-    free( displayModeName );
+      string modeName( displayModeName );
 
-    // while ((result = displayModeIterator->Next(&displayMode)) == S_OK)
-    // {
-    //         if (idx == 0)
-    //                 break;
-    //         --idx;
-    //
-    //         displayMode->Release();
-    // }
-    //
-    // if (result != S_OK || displayMode == NULL)
-    // {
-    //         LOG(WARNING) << "Unable to get display mode";
-    //         return;
-    // }
-    //
-    // Get display mode name
-    // char displayModeName[255];
-    // result = displayMode->GetName((const char **)&displayModeName);
-    // if (result != S_OK) {
-    //   LOG(WARNING) << "Unable to query model name.";
-    //   return;
-    // }
+      if( modeName == "1080p59.94" ) {
+        displayMode = displayModeItr;
+      }
 
-    //  displayModeName = (char *)malloc(32);
-    //  snprintf(displayModeName, 32, "[index %d]", g_config.m_displayModeIndex);
-    //  }
-    //
+      free( displayModeName );
+
+      // Check for the desired displayModeName
+
+      // LOG(WARNING) << "Unable to get first DisplayMode";
+      // return;
+    }
+
+    if( displayMode == nullptr  ) {
+      LOG(WARNING) << "Didn't select a display mode";
+      return;
+    }
+
+
+
     //  // Check display mode is supported with given options
     //  result = g_deckLinkInput->DoesSupportVideoMode(displayMode->GetDisplayMode(), g_config.m_pixelFormat, bmdVideoInputFlagDefault, &displayModeSupported, NULL);
     //  if (result != S_OK)
