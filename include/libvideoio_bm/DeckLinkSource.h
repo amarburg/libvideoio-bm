@@ -38,6 +38,8 @@ protected:
 
   IDeckLinkInput* _deckLinkInput;
 
+  DeckLinkCaptureDelegate *_delegate;
+
 
 };
 
