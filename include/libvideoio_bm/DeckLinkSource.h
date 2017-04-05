@@ -51,6 +51,8 @@ protected:
   bool _initialized;
 
   IDeckLinkInput* _deckLinkInput;
+  IDeckLinkOutput* _deckLinkOutput;
+
 
   DeckLinkCaptureDelegate *_delegate;
 

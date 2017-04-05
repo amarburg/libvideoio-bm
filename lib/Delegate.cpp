@@ -1,5 +1,11 @@
 
+#include <iostream>
+
 #include <g3log/g3log.hpp>
+
+#include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #include "libvideoio_bm/Delegate.h"
 
@@ -7,87 +13,66 @@ namespace libvideoio_bm {
 
   const int maxDequeDepth = 10;
 
-  class MyOutputImage : public IDeckLinkVideoFrame {
+  // Based on CvMatDeckLinkVideoFrame from
+  // https://github.com/ull-isaatc/blackmagic-test
+
+  class CvMatDeckLinkVideoFrame : public IDeckLinkVideoFrame {
   public:
-    MyOutputImage( long w, long h, long rb, BMDPixelFormat format,
-                  BMDFrameFlags flags = bmdVideoInputFlagDefault )
-      : _refCount(1), _width( w ), _height( h ), _rowBytes( rb ),
-        _format( format ), _flags( flags ),
-        _buffer( new unsigned char[ h * rb ] )
-        {;}
+       cv::Mat mat;
 
-        ~MyOutputImage()
-        {
-          delete _buffer;
-        }
+       CvMatDeckLinkVideoFrame(int row, int cols)
+           : mat(row, cols, CV_8UC4)
+       {}
 
-        // IUnknown virtual functions
-        virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, LPVOID *ppv)
-        { return E_NOINTERFACE; }
+       //
+       // IDeckLinkVideoFrame
+       //
 
-        ULONG AddRef(void)
-        {
-          return __sync_add_and_fetch(&_refCount, 1);
-        }
+       long GetWidth()
+       { return mat.rows; }
+       long GetHeight()
+       { return mat.cols; }
+       long GetRowBytes()
+       { return mat.step; }
+       BMDPixelFormat GetPixelFormat()
+       {
+         return bmdFormat10BitYUV;  //bmdFormat8BitBGRA;
+       }
 
-        ULONG Release(void)
-        {
-          int32_t newRefValue = __sync_sub_and_fetch(&_refCount, 1);
-          if (newRefValue == 0)
-          {
-            delete this;
-            return 0;
-          }
-          return newRefValue;
-        }
+       BMDFrameFlags GetFlags()
+       {
+         return 0;
+       }
 
-        // IDeckLinkVideoFrame
-    virtual long GetWidth (void)
-    { return _width; }
+       HRESULT GetBytes(void **buffer)
+       {
+           *buffer = mat.data;
+           return S_OK;
+       }
 
-    virtual long GetHeight (void)
-     { return _height; }
+       HRESULT GetTimecode(BMDTimecodeFormat format,
+           IDeckLinkTimecode **timecode)
+       { *timecode = nullptr; return S_OK; }
 
-    virtual long GetRowBytes (void)
-    { return _rowBytes; }
+       HRESULT GetAncillaryData(IDeckLinkVideoFrameAncillary **ancillary)
+       { *ancillary = nullptr; return S_OK; }
 
-    virtual BMDPixelFormat GetPixelFormat(void)
-     { return _format; }
+       HRESULT QueryInterface(REFIID iid, LPVOID *ppv)
+   { return E_NOINTERFACE; }
 
-    virtual BMDFrameFlags GetFlags (void)
-    { return _flags; }
-
-    virtual HRESULT GetBytes (/* out */ void **buffer)
-    {
-      *buffer = _buffer;
-    }
-
-    virtual HRESULT GetTimecode (/* in */ BMDTimecodeFormat format, /* out */ IDeckLinkTimecode **timecode)
-    { return S_OK; }
-
-    virtual HRESULT GetAncillaryData (/* out */ IDeckLinkVideoFrameAncillary **ancillary)
-    { return S_OK; }
-
-
-    unsigned char *BufferBytes()
-    { return _buffer; }
-  protected:
-
-    int32_t _refCount;
-
-    long _width, _height, _rowBytes;
-
-  BMDPixelFormat _format;
-  BMDFrameFlags _flags;
-
-    unsigned char *_buffer;
-
+   ULONG AddRef()
+   { mat.addref(); return *mat.refcount; }
+   ULONG Release()
+   {
+       mat.release();
+       if (*mat.refcount == 0) delete this;
+       return *mat.refcount;
+   }
 
   };
 
-  DeckLinkCaptureDelegate::DeckLinkCaptureDelegate( IDeckLinkInput* input, unsigned int maxFrames )
-  : _refCount(1), _maxFrames( maxFrames ), _frameCount(0), _deckLinkInput(input),
-    _deckLinkConversion( CreateVideoConversionInstance() )
+  DeckLinkCaptureDelegate::DeckLinkCaptureDelegate( IDeckLinkInput* input, IDeckLinkOutput *output, unsigned int maxFrames )
+  : _refCount(1), _maxFrames( maxFrames ), _frameCount(0), _deckLinkInput(input), _deckLinkOutput(output)
   {
   }
 
@@ -158,13 +143,71 @@ namespace libvideoio_bm {
           // void *frameBytes;
           // videoFrame->GetBytes(&frameBytes);
 
-          auto dstFrame = new MyOutputImage( videoFrame->GetWidth(), videoFrame->GetHeight(),
-                                            videoFrame->GetWidth()*4,
-                                           bmdFormat8BitBGRA  );
+          cv::Mat out;
 
-          if( _deckLinkConversion->ConvertFrame( videoFrame, dstFrame ) != S_OK ) {
-            LOG(WARNING) << "Unable to do conversion";
+          switch (videoFrame->GetPixelFormat()) {
+          case bmdFormat8BitYUV:
+          {
+              void* data;
+              if ( videoFrame->GetBytes(&data) != S_OK )
+                  return false;
+              cv::Mat mat = cv::Mat(videoFrame->GetHeight(), videoFrame->GetWidth(), CV_8UC2, data,
+                  videoFrame->GetRowBytes());
+              cv::cvtColor(mat, out, cv::COLOR_YUV2BGR ); //_UYVY);
+              return true;
           }
+          case bmdFormat8BitBGRA:
+          {
+              void* data;
+              if ( videoFrame->GetBytes(&data) != S_OK )
+                  return false;
+
+              cv::Mat mat = cv::Mat(videoFrame->GetHeight(), videoFrame->GetWidth(), CV_8UC4, data);
+              cv::cvtColor(mat, out, cv::COLOR_BGRA2BGR);
+              return true;
+          }
+          default:
+          {
+            IDeckLinkMutableVideoFrame*     dstFrame = NULL;
+
+              //CvMatDeckLinkVideoFrame cvMatWrapper(videoFrame->GetHeight(), videoFrame->GetWidth());
+              HRESULT result = _deckLinkOutput->CreateVideoFrame( videoFrame->GetWidth(), videoFrame->GetHeight(),
+                                          videoFrame->GetWidth() * 4, bmdFormat8BitBGRA, bmdFrameFlagDefault, &dstFrame);
+                if (result != S_OK)
+                {
+                        LOG(WARNING) << "Failed to create reference video frame";
+                        return false;
+                }
+
+
+              IDeckLinkVideoConversion *converter =  CreateVideoConversionInstance();
+
+              LOG(WARNING) << "Converting " << std::hex << videoFrame->GetPixelFormat() << " to " << dstFrame->GetPixelFormat();
+              result =  converter->ConvertFrame(videoFrame, dstFrame);
+
+              if (result != S_OK ) {
+                 LOG(WARNING) << "Failed to do conversion " << std::hex << result;
+                return false;
+              }
+
+              void *buffer = nullptr;
+              if( dstFrame->GetBytes( &buffer ) != S_OK ) {
+                LOG(WARNING) << "Unable to get bytes from dstFrame";
+                return false;
+              }
+              cv::Mat srcMat( cv::Size(dstFrame->GetWidth(), dstFrame->GetHeight()), CV_8UC4, buffer, dstFrame->GetRowBytes() );
+
+              cv::cvtColor(srcMat, out, cv::COLOR_BGRA2BGR);
+            //  return true;
+          }
+        }
+
+          // auto dstFrame = new MyOutputImage( videoFrame->GetWidth(), videoFrame->GetHeight(),
+          //                                   videoFrame->GetWidth()*4,
+          //                                  bmdFormat8BitBGRA  );
+          //
+          // if( _deckLinkConversion->ConvertFrame( videoFrame, dstFrame ) != S_OK ) {
+          // }
 
           // See:
           // https://developer.apple.com/library/content/technotes/tn2162/_index.html#//apple_ref/doc/uid/DTS40013070-CH1-TNTAG8-V210__4_2_2_COMPRESSION_TYPE
@@ -202,8 +245,8 @@ namespace libvideoio_bm {
 
           // Decode to Mat?
 
-          cv::Mat out( cv::Size(dstFrame->GetWidth(), dstFrame->GetHeight()),
-                                CV_8UC4, dstFrame->BufferBytes(), videoFrame->GetRowBytes() );
+          // cv::Mat out( cv::Size(dstFrame->GetWidth(), dstFrame->GetHeight()),
+          //                       CV_8UC4, dstFrame->BufferBytes(), videoFrame->GetRowBytes() );
 
 
           if( _queue.size() < maxDequeDepth ) {

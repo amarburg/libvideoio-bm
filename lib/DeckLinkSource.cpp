@@ -107,6 +107,14 @@ namespace libvideoio_bm {
       return;
     }
 
+
+    result = deckLink->QueryInterface(IID_IDeckLinkOutput, (void**)&_deckLinkOutput);
+    if (result != S_OK) {
+      LOG(WARNING) << "Couldn't get input for Decklink";
+      return;
+    }
+
+
     IDeckLinkAttributes* deckLinkAttributes = NULL;
     bool formatDetectionSupported;
     //      // Get the display mode
@@ -221,7 +229,7 @@ namespace libvideoio_bm {
     //  g_config.DisplayConfiguration();
     //
     //  // Configure the capture callback
-    _delegate = new DeckLinkCaptureDelegate( _deckLinkInput );
+    _delegate = new DeckLinkCaptureDelegate( _deckLinkInput, _deckLinkOutput );
     _deckLinkInput->SetCallback(_delegate);
 
     //
