@@ -7,8 +7,8 @@ namespace libvideoio_bm {
 
   const int maxDequeDepth = 10;
 
-  DeckLinkCaptureDelegate::DeckLinkCaptureDelegate( unsigned int maxFrames )
-  : _refCount(1), _maxFrames( maxFrames )
+  DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(  IDeckLinkInput* input, unsigned int maxFrames )
+  : _refCount(1), _maxFrames( maxFrames ), _frameCount(0), _deckLinkInput(input)
   {
   }
 
@@ -52,7 +52,7 @@ namespace libvideoio_bm {
 
         if (videoFrame->GetFlags() & bmdFrameHasNoInputSource)
         {
-          LOGF(WARNING,"Frame received (#%u) - No input signal detected", _frameCount);
+          LOGF(WARNING,"Frame received (#%lu) - No input signal detected", _frameCount);
         }
         else
         {
@@ -66,7 +66,7 @@ namespace libvideoio_bm {
           //   }
           // }
 
-          LOGF(INFO, "Frame received (#%u) [%s] - %s - Size: %li bytes",
+          LOGF(INFO, "Frame received (#%lu) [%s] - %s - Size: %li bytes",
           _frameCount, "",
           // timecodeString != nullptr ? timecodeString : "No timecode",
           rightEyeFrame != nullptr ? "Valid Frame (3D left/right)" : "Valid Frame",
@@ -127,35 +127,39 @@ namespace libvideoio_bm {
 
     HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChangedEvents events, IDeckLinkDisplayMode *mode, BMDDetectedVideoInputFormatFlags formatFlags)
     {
+      LOG(INFO) << "Received Video Input Format Changed";
+
       // This only gets called if bmdVideoInputEnableFormatDetection was set
       // when enabling video input
-      // HRESULT result;
-      // char*   displayModeName = nullptr;
-      // BMDPixelFormat  pixelFormat = bmdFormat10BitYUV;
-      //
-      // if (formatFlags & bmdDetectedVideoInputRGB444)
-      // pixelFormat = bmdFormat10BitRGB;
-      //
-      // mode->GetName((const char**)&displayModeName);
-      // printf("Video format changed to %s %s\n", displayModeName, formatFlags & bmdDetectedVideoInputRGB444 ? "RGB" : "YUV");
-      //
-      // if (displayModeName)
-      // free(displayModeName);
-      //
-      // if (g_deckLinkInput)
-      // {
-      //   g_deckLinkInput->StopStreams();
-      //
-      //   result = g_deckLinkInput->EnableVideoInput(mode->GetDisplayMode(), pixelFormat, g_config.m_inputFlags);
-      //   if (result != S_OK)
-      //   {
-      //     fprintf(stderr, "Failed to switch video mode\n");
-      //     goto bail;
-      //   }
-      //
-      //   g_deckLinkInput->StartStreams();
-      // }
-      // bail:
+
+      HRESULT result;
+      char*   displayModeName = nullptr;
+      BMDPixelFormat  pixelFormat = bmdFormat10BitYUV;
+
+      if (formatFlags & bmdDetectedVideoInputRGB444)
+      pixelFormat = bmdFormat10BitRGB;
+
+      mode->GetName((const char**)&displayModeName);
+      LOGF(INFO,"Video format changed to %s %s", displayModeName, formatFlags & bmdDetectedVideoInputRGB444 ? "RGB" : "YUV");
+
+      if (displayModeName) free(displayModeName);
+
+      if(_deckLinkInput)
+      {
+        _deckLinkInput->StopStreams();
+
+        BMDVideoInputFlags m_inputFlags = bmdVideoInputFlagDefault | bmdVideoInputEnableFormatDetection;
+
+        result = _deckLinkInput->EnableVideoInput(mode->GetDisplayMode(), pixelFormat, m_inputFlags);
+        if (result != S_OK)
+        {
+          LOG(WARNING) << "Failed to switch video mode";
+          return result;
+        }
+
+        _deckLinkInput->StartStreams();
+      }
+
       return S_OK;
     }
 

@@ -32,7 +32,7 @@ namespace libvideoio_bm {
 
     // Hardcode some parameters for now
     BMDVideoInputFlags m_inputFlags = bmdVideoInputFlagDefault;
-    BMDPixelFormat m_pixelFormat = bmdFormat8BitYUV;
+    BMDPixelFormat m_pixelFormat = bmdFormat10BitYUV;
     //BMDTimecodeFormat m_timecodeFormat;
 
     // Get the DeckLink device
@@ -43,17 +43,33 @@ namespace libvideoio_bm {
       return;
     }
 
-    // idx = g_config.m_deckLinkIndex;
+    //idx = g_config.m_deckLinkIndex;
     //
-    // while ((result = deckLinkIterator->Next(&deckLink)) == S_OK)
-    // {
-    //         if (idx == 0)
-    //                 break;
-    //         --idx;
-    //
-    //         deckLink->Release();
-    // }
+    while ((result = deckLinkIterator->Next(&deckLink)) == S_OK)
+    {
 
+    char *modelName, *displayName;
+    if( deckLink->GetModelName( (const char **)&modelName ) != S_OK ) {
+      LOG(WARNING) << "Unable to query model name.";
+      return;
+    }
+
+    if( deckLink->GetDisplayName( (const char **)&displayName ) != S_OK ) {
+      LOG(WARNING) << "Unable to query display name.";
+      return;
+    }
+
+    LOG(INFO) << "Using card \"" << modelName << "\" with display name \"" << displayName << "\"";
+
+    free(modelName);
+    free(displayName);
+
+            deckLink->Release();
+    }
+
+
+	free(deckLinkIterator);
+    deckLinkIterator = CreateDeckLinkIteratorInstance();
     // Use first device
     if( (result = deckLinkIterator->Next(&deckLink)) != S_OK) {
       LOG(WARNING) << "Couldn't get information on the first DeckLink object.";
@@ -97,10 +113,12 @@ namespace libvideoio_bm {
       {
         LOG(WARNING) << "Format detection is not supported on this device";
         return;
+      } else {
+        LOG(INFO) << "Enabling automatic format detection on input card.";
+        m_inputFlags |= bmdVideoInputEnableFormatDetection;
       }
     }
 
-    //g_config.m_inputFlags |= bmdVideoInputEnableFormatDetection;
 
     // Format detection still needs a valid mode to start with
     //idx = 0;
@@ -140,13 +158,13 @@ namespace libvideoio_bm {
 
       float frameRate = (timeScale != 0) ? float(timeValue)/timeScale : float(timeValue);
 
-      LOG(INFO) << "Using display mode \"" << displayModeName << "\"    " <<
+      LOG(INFO) << "Card supports display mode \"" << displayModeName << "\"    " <<
       displayModeItr->GetWidth() << " x " << displayModeItr->GetHeight() <<
       ", " << 1.0/frameRate << " FPS";
 
       string modeName( displayModeName );
 
-      if( modeName == "1080p59.94" ) {
+      if( modeName == "1080i60" ) {
         displayMode = displayModeItr;
       }
 
@@ -168,9 +186,9 @@ namespace libvideoio_bm {
     // Check display mode is supported with given options
     BMDDisplayModeSupport displayModeSupported;
     result = _deckLinkInput->DoesSupportVideoMode(displayMode->GetDisplayMode(),
-    m_pixelFormat,
-    bmdVideoInputFlagDefault,
-    &displayModeSupported, NULL);
+                                                  m_pixelFormat,
+                                                  bmdVideoInputFlagDefault,
+                                                  &displayModeSupported, NULL);
     if (result != S_OK) {
       LOG(WARNING) << "Error checking if DeckLinkInput supports this mode";
       return;
@@ -195,13 +213,13 @@ namespace libvideoio_bm {
     //  g_config.DisplayConfiguration();
     //
     //  // Configure the capture callback
-    _delegate = new DeckLinkCaptureDelegate();
+    _delegate = new DeckLinkCaptureDelegate( _deckLinkInput );
     _deckLinkInput->SetCallback(_delegate);
 
     //
     // Start capturing
     result = _deckLinkInput->EnableVideoInput(displayMode->GetDisplayMode(),
-    m_pixelFormat, m_inputFlags);
+    						m_pixelFormat, bmdVideoInputEnableFormatDetection);
     if (result != S_OK)
     {
       LOG(WARNING) << "Failed to enable video input. Is another application using the card?";
@@ -226,7 +244,7 @@ namespace libvideoio_bm {
   bool DeckLinkSource::grab( void )
   {
     if( _delegate ) {
-      _delegate->imageReady().wait();
+      if( !_delegate->imageReady().wait_for(std::chrono::milliseconds(100) ) ) return false;
 
       _grabbedImage = _delegate->popImage();
 

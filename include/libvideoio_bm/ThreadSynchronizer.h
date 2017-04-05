@@ -56,11 +56,11 @@ public:
   }
 
   template< class Rep, class Period >
-  void wait_for( const std::chrono::duration<Rep, Period> &dur )
+  bool wait_for( const std::chrono::duration<Rep, Period> &dur )
   {
     {
       std::unique_lock<std::mutex> lk(_mutex);
-      _cv.wait_for(lk, dur);
+      return (_cv.wait_for(lk, dur) == std::cv_status::no_timeout);
     }
   }
 

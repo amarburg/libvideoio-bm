@@ -13,7 +13,7 @@ namespace libvideoio_bm {
   class DeckLinkCaptureDelegate : public IDeckLinkInputCallback
   {
   public:
-    DeckLinkCaptureDelegate( unsigned int maxFrames = -1 );
+    DeckLinkCaptureDelegate(  IDeckLinkInput* input, unsigned int maxFrames = -1 );
 
     virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, LPVOID *ppv) { return E_NOINTERFACE; }
     virtual ULONG STDMETHODCALLTYPE AddRef(void);
@@ -27,7 +27,9 @@ namespace libvideoio_bm {
   private:
     int32_t _refCount;
 
-    unsigned int _frameCount, _maxFrames;
+    unsigned long _frameCount, _maxFrames;
+
+    IDeckLinkInput* _deckLinkInput;
 
 
         ThreadSynchronizer _imageReady;
