@@ -31,6 +31,7 @@ bool keepGoing = true;
 
 void signal_handler( int sig )
 {
+	LOG(INFO) << "Signal handler: " << sig;
 	switch( sig ) {
 		case SIGINT:
 		keepGoing = false;
@@ -90,12 +91,13 @@ int main( int argc, char** argv )
 	// int skip = skipArg.getValue();
 	//
 
-
 		libvideoio::Display display( doGui );
 
-	auto decklink = new DeckLinkSource();
+	DeckLinkSource decklink;
+	std::thread dlThread( std::ref(decklink) );
 
-	if( !decklink->initialized() ) {
+	// Need to wait for initialization
+	if( decklink.initializedSync.wait_for( std::chrono::seconds(1) ) == false || !decklink.initialized() ) {
 		LOG(WARNING) << "Unable to initialize DeckLinkSource";
 		exit(-1);
 	}
@@ -125,6 +127,8 @@ int main( int argc, char** argv )
 	int count = 0, miss = 0, displayed = 0;
 	bool logOnce = true;
 
+	//decklink.start();
+
 	while( keepGoing ) {
 
 		if( count > 0 && (count % 100)==0 ) {
@@ -137,9 +141,9 @@ int main( int argc, char** argv )
 		std::chrono::steady_clock::time_point loopStart( std::chrono::steady_clock::now() );
 		if( (duration > 0) && (loopStart > end) ) { keepGoing = false;  break; }
 
-		if( decklink->grab() ) {
+		if( decklink.grab() ) {
 			cv::Mat image;
-			decklink->getImage(0, image);
+			decklink.getImage(0, image);
 
 	// 	if( !camera->grab( sl::zed::STANDARD, false, false, false ) ) {
 	// 		const bool doDisplayThisFrame = (doDisplay && (count % skip == 0));
@@ -181,6 +185,7 @@ int main( int argc, char** argv )
 	//
 		} else {
 			// if grab() fails
+			LOG(INFO) << "miss";
 			++miss;
 			std::this_thread::sleep_for(std::chrono::microseconds(100));
 		}
@@ -198,6 +203,7 @@ int main( int argc, char** argv )
 	 	std::chrono::duration<float> dur( std::chrono::steady_clock::now()  - start );
 	//
 	LOG(INFO) << "Cleaning up...";
+	decklink.stop();
 
 	// 	if( camera && svoOutputArg.isSet() ) camera->stopRecording();
 	// 	if( camera ) delete camera;

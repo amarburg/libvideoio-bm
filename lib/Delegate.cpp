@@ -83,11 +83,10 @@ namespace libvideoio_bm {
           cv::Mat out( cv::Size(videoFrame->GetWidth(), videoFrame->GetHeight()),
           CV_8UC3, frameBytes, videoFrame->GetRowBytes() );
 
-          if( _imageQueue.size() < maxDequeDepth ) {
-            ThreadSynchronizer::LockGuard lock( _imageReady.mutex() );
-            _imageQueue.push( out );
-            _imageReady.notify();
-
+          if( _queue.size() < maxDequeDepth ) {
+            LOG(INFO) << "Queueing";
+            _queue.push( out );
+            LOG(INFO) << "Queued";
           } else {
             LOG(WARNING) << "Image queue full";
           }
@@ -163,16 +162,15 @@ namespace libvideoio_bm {
       return S_OK;
     }
 
-    cv::Mat DeckLinkCaptureDelegate::popImage() {
-      ThreadSynchronizer::LockGuard lock(_imageReady.mutex());
-
-      if( _imageQueue.size() == 0 )
-      return cv::Mat();
-
-      cv::Mat out( _imageQueue.front() );
-
-      _imageQueue.pop();
-      return out;
-    }
+    // cv::Mat DeckLinkCaptureDelegate::popImage() {
+    //   ThreadSynchronizer::LockGuard lock(_imageReady.mutex());
+    //
+    //   if( _imageQueue.size() == 0 ) return cv::Mat();
+    //
+    //   cv::Mat out( _imageQueue.front() );
+    //
+    //   _imageQueue.pop();
+    //   return out;
+    // }
 
   }

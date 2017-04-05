@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+
 #include "libvideoio/DataSource.h"
 #include "Delegate.h"
 
@@ -17,15 +19,17 @@ public:
 	DeckLinkSource( );
   ~DeckLinkSource();
 
-  void initialize();
+  // Thread entry point
+  void operator()();
 
+  void initialize();
   bool initialized() const { return _initialized; }
 
   virtual int numFrames( void ) const { return -1; }
 
-  // Delete copy operators
-  DeckLinkSource( const DeckLinkSource & ) = delete;
-  DeckLinkSource &operator=( const DeckLinkSource & ) = delete;
+  // // Delete copy operators
+  // DeckLinkSource( const DeckLinkSource & ) = delete;
+  // DeckLinkSource &operator=( const DeckLinkSource & ) = delete;
 
   virtual bool grab( void );
 
@@ -33,7 +37,14 @@ public:
 
   virtual ImageSize imageSize( void ) const;
 
+  void start();
+  void stop();
+
+  ThreadSynchronizer doneSync;
+  ThreadSynchronizer initializedSync;
+
 protected:
+
 
   cv::Mat _grabbedImage;
 

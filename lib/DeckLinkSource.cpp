@@ -13,7 +13,7 @@ namespace libvideoio_bm {
   _deckLinkInput( nullptr ),
   _delegate( nullptr )
   {
-    initialize();
+    //initialize();
   }
 
   DeckLinkSource::~DeckLinkSource()
@@ -23,6 +23,14 @@ namespace libvideoio_bm {
       free( _deckLinkInput );
     }
   }
+
+  // Thread entry point
+  void DeckLinkSource::operator()() {
+     initialize();
+     start();
+     doneSync.wait();
+     stop();
+    }
 
   void DeckLinkSource::initialize()
   {
@@ -217,36 +225,54 @@ namespace libvideoio_bm {
     _deckLinkInput->SetCallback(_delegate);
 
     //
-    // Start capturing
-    result = _deckLinkInput->EnableVideoInput(displayMode->GetDisplayMode(),
-    						m_pixelFormat, bmdVideoInputEnableFormatDetection);
-    if (result != S_OK)
-    {
-      LOG(WARNING) << "Failed to enable video input. Is another application using the card?";
-      return;
-    }
+    // // Start capturing
+    // result = _deckLinkInput->EnableVideoInput(displayMode->GetDisplayMode(),
+    // 						m_pixelFormat, bmdVideoInputEnableFormatDetection);
+    // if (result != S_OK)
+    // {
+    //   LOG(WARNING) << "Failed to enable video input. Is another application using the card?";
+    //   return;
+    // }
 
+    _initialized = true;
+    initializedSync.notify();
+  }
+
+  void DeckLinkSource::start( void )
+  {
     //
     //  result = g_deckLinkInput->EnableAudioInput(bmdAudioSampleRate48kHz, g_config.m_audioSampleDepth, g_config.m_audioChannels);
     //  if (result != S_OK)
     //          goto bail;
     //
-    result = _deckLinkInput->StartStreams();
+
+    auto result = _deckLinkInput->StartStreams();
     if (result != S_OK) {
       LOG(WARNING) << "Failed to start streams";
       return;
     }
 
-    _initialized = true;
+  }
 
+  void DeckLinkSource::stop( void )
+  {
+    auto result = _deckLinkInput->StopStreams();
+    if (result != S_OK) {
+      LOG(WARNING) << "Failed to stop streams";
+      return;
+    }
   }
 
   bool DeckLinkSource::grab( void )
   {
     if( _delegate ) {
-      if( !_delegate->imageReady().wait_for(std::chrono::milliseconds(100) ) ) return false;
+      if( _delegate->queue().wait_for_pop(_grabbedImage, std::chrono::milliseconds(100) ) == false ) {
+        LOG(WARNING) << "Timeout waiting for image";
+        return false;
+      }
+      LOG(INFO) << "Grabbing image";
 
-      _grabbedImage = _delegate->popImage();
+      // _grabbedImage = _delegate->popImage();
 
       // Ifdesired,enumeratethesupportedcapturevideomodesbycalling IDeckLinkInput::GetDisplayModeIterator. For each reported capture mode, call IDeckLinkInput::DoesSupportVideoMode to check if the combination of the video mode and pixel format is supported.
       //  IDeckLinkInput::EnableVideoInput
@@ -275,11 +301,11 @@ namespace libvideoio_bm {
   {
     switch(i) {
       case 0:
-      mat = _grabbedImage;
-      return 1;
-      break;
+            mat = _grabbedImage;
+            return 1;
+            break;
       default:
-      return 0;
+            return 0;
     }
   }
 

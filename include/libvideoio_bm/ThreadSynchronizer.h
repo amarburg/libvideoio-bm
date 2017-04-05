@@ -60,7 +60,11 @@ public:
   {
     {
       std::unique_lock<std::mutex> lk(_mutex);
-      return (_cv.wait_for(lk, dur) == std::cv_status::no_timeout);
+      bool timeout(false);
+      while( !_ready || timeout ) {
+        timeout = (_cv.wait_for(lk, dur) == std::cv_status::no_timeout);
+      }
+      return timeout ? false : true;
     }
   }
 

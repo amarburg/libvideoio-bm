@@ -4,6 +4,7 @@
 
 #include <opencv2/core/core.hpp>
 
+#include "active_object/shared_queue.h"
 #include <DeckLinkAPI.h>
 #include "ThreadSynchronizer.h"
 
@@ -21,19 +22,22 @@ namespace libvideoio_bm {
     virtual HRESULT STDMETHODCALLTYPE VideoInputFormatChanged(BMDVideoInputFormatChangedEvents, IDeckLinkDisplayMode*, BMDDetectedVideoInputFormatFlags);
     virtual HRESULT STDMETHODCALLTYPE VideoInputFrameArrived(IDeckLinkVideoInputFrame*, IDeckLinkAudioInputPacket*);
 
-    ThreadSynchronizer &imageReady() { return _imageReady; }
-    cv::Mat popImage();
+    active_object::shared_queue< cv::Mat > &queue() { return _queue; }
+
+    // ThreadSynchronizer &imageReady() { return _imageReady; }
+    // cv::Mat popImage();
 
   private:
+
+    bool _stop;
+
     int32_t _refCount;
 
     unsigned long _frameCount, _maxFrames;
 
     IDeckLinkInput* _deckLinkInput;
 
-
-        ThreadSynchronizer _imageReady;
-        std::queue< cv::Mat > _imageQueue;
+    active_object::shared_queue< cv::Mat > _queue;
 
   };
 
