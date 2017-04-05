@@ -225,14 +225,14 @@ namespace libvideoio_bm {
     _deckLinkInput->SetCallback(_delegate);
 
     //
-    // // Start capturing
-    // result = _deckLinkInput->EnableVideoInput(displayMode->GetDisplayMode(),
-    // 						m_pixelFormat, bmdVideoInputEnableFormatDetection);
-    // if (result != S_OK)
-    // {
-    //   LOG(WARNING) << "Failed to enable video input. Is another application using the card?";
-    //   return;
-    // }
+    // Start capturing
+    result = _deckLinkInput->EnableVideoInput(displayMode->GetDisplayMode(),
+    						m_pixelFormat, bmdVideoInputEnableFormatDetection);
+    if (result != S_OK)
+    {
+      LOG(WARNING) << "Failed to enable video input. Is another application using the card?";
+      return;
+    }
 
     _initialized = true;
     initializedSync.notify();

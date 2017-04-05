@@ -7,8 +7,87 @@ namespace libvideoio_bm {
 
   const int maxDequeDepth = 10;
 
-  DeckLinkCaptureDelegate::DeckLinkCaptureDelegate(  IDeckLinkInput* input, unsigned int maxFrames )
-  : _refCount(1), _maxFrames( maxFrames ), _frameCount(0), _deckLinkInput(input)
+  class MyOutputImage : public IDeckLinkVideoFrame {
+  public:
+    MyOutputImage( long w, long h, long rb, BMDPixelFormat format,
+                  BMDFrameFlags flags = bmdVideoInputFlagDefault )
+      : _refCount(1), _width( w ), _height( h ), _rowBytes( rb ),
+        _format( format ), _flags( flags ),
+        _buffer( new unsigned char[ h * rb ] )
+        {;}
+
+        ~MyOutputImage()
+        {
+          delete _buffer;
+        }
+
+        // IUnknown virtual functions
+        virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, LPVOID *ppv)
+        { return E_NOINTERFACE; }
+
+        ULONG AddRef(void)
+        {
+          return __sync_add_and_fetch(&_refCount, 1);
+        }
+
+        ULONG Release(void)
+        {
+          int32_t newRefValue = __sync_sub_and_fetch(&_refCount, 1);
+          if (newRefValue == 0)
+          {
+            delete this;
+            return 0;
+          }
+          return newRefValue;
+        }
+
+        // IDeckLinkVideoFrame
+    virtual long GetWidth (void)
+    { return _width; }
+
+    virtual long GetHeight (void)
+     { return _height; }
+
+    virtual long GetRowBytes (void)
+    { return _rowBytes; }
+
+    virtual BMDPixelFormat GetPixelFormat(void)
+     { return _format; }
+
+    virtual BMDFrameFlags GetFlags (void)
+    { return _flags; }
+
+    virtual HRESULT GetBytes (/* out */ void **buffer)
+    {
+      *buffer = _buffer;
+    }
+
+    virtual HRESULT GetTimecode (/* in */ BMDTimecodeFormat format, /* out */ IDeckLinkTimecode **timecode)
+    { return S_OK; }
+
+    virtual HRESULT GetAncillaryData (/* out */ IDeckLinkVideoFrameAncillary **ancillary)
+    { return S_OK; }
+
+
+    unsigned char *BufferBytes()
+    { return _buffer; }
+  protected:
+
+    int32_t _refCount;
+
+    long _width, _height, _rowBytes;
+
+  BMDPixelFormat _format;
+  BMDFrameFlags _flags;
+
+    unsigned char *_buffer;
+
+
+  };
+
+  DeckLinkCaptureDelegate::DeckLinkCaptureDelegate( IDeckLinkInput* input, unsigned int maxFrames )
+  : _refCount(1), _maxFrames( maxFrames ), _frameCount(0), _deckLinkInput(input),
+    _deckLinkConversion( CreateVideoConversionInstance() )
   {
   }
 
@@ -31,10 +110,9 @@ namespace libvideoio_bm {
   HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame,
     IDeckLinkAudioInputPacket* audioFrame)
     {
-      IDeckLinkVideoFrame *rightEyeFrame = nullptr;
-      IDeckLinkVideoFrame3DExtensions *threeDExtensions = nullptr;
-      void *frameBytes;
-      void *audioFrameBytes;
+      // IDeckLinkVideoFrame *rightEyeFrame = nullptr;
+//      IDeckLinkVideoFrame3DExtensions *threeDExtensions = nullptr;
+//      void *audioFrameBytes;
 
       // Handle Video Frame
       if (videoFrame)
@@ -66,27 +144,70 @@ namespace libvideoio_bm {
           //   }
           // }
 
-          LOGF(INFO, "Frame received (#%lu) [%s] - %s - Size: %li bytes",
-          _frameCount, "",
+          LOGF(INFO, "Frame received (#%lu) %li bytes, %lu x %lu",
+          _frameCount,
           // timecodeString != nullptr ? timecodeString : "No timecode",
-          rightEyeFrame != nullptr ? "Valid Frame (3D left/right)" : "Valid Frame",
-          videoFrame->GetRowBytes() * videoFrame->GetHeight());
+          videoFrame->GetRowBytes() * videoFrame->GetHeight(),
+          videoFrame->GetWidth(), videoFrame->GetHeight() );
           //
           // if (timecodeString)
           // free((void*)timecodeString);
 
           // if (g_videoOutputFile != -1)
           // {
-          videoFrame->GetBytes(&frameBytes);
+          // void *frameBytes;
+          // videoFrame->GetBytes(&frameBytes);
+
+          auto dstFrame = new MyOutputImage( videoFrame->GetWidth(), videoFrame->GetHeight(),
+                                            videoFrame->GetWidth()*4,
+                                           bmdFormat8BitBGRA  );
+
+          if( _deckLinkConversion->ConvertFrame( videoFrame, dstFrame ) != S_OK ) {
+            LOG(WARNING) << "Unable to do conversion";
+          }
+
+          // See:
+          // https://developer.apple.com/library/content/technotes/tn2162/_index.html#//apple_ref/doc/uid/DTS40013070-CH1-TNTAG8-V210__4_2_2_COMPRESSION_TYPE
+          // const unsigned int uwidth = videoFrame->GetWidth();
+          // const unsigned int uheight = videoFrame->GetHeight();
+          //
+          // int i = 0,j = 0, r = 0, g = 0, b = 0;
+          // typedef unsigned char BYTE;
+          // cv::Mat out(cv::Size(uwidth, uheight), CV_8UC3);
+          //
+          // unsigned char* pData = (unsigned char *)frameBytes;
+          //
+          // for(i=0, j=0; i < uwidth * uheight*3 ; i+=6, j+=4)
+          // {
+          //    unsigned char u = pData[j];
+          //    unsigned char y = pData[j+1];
+          //    unsigned char v = pData[j+2];
+          //
+          //    b = 1.0*y + 8 + 1.402*(v-128);
+          //    g = 1.0*y - 0.34413*(u-128) - 0.71414*(v-128);
+          //    r = 1.0*y + 1.772*(u-128);
+          //
+          //    if(r>255) r =255;
+          //    if(g>255) g =255;
+          //    if(b>255) b =255;
+          //    if(r<0)   r =0;
+          //    if(g<0)   g =0;
+          //    if(b<0)   b =0;
+          //
+          //    out.data[i] = (BYTE)(r*220/256);
+          //    out.data[i+1] = (BYTE)(g*220/256);
+          //    out.data[i+2] =(BYTE)(b*220/256);
+          // }
+
 
           // Decode to Mat?
-          cv::Mat out( cv::Size(videoFrame->GetWidth(), videoFrame->GetHeight()),
-          CV_8UC3, frameBytes, videoFrame->GetRowBytes() );
+
+          cv::Mat out( cv::Size(dstFrame->GetWidth(), dstFrame->GetHeight()),
+                                CV_8UC4, dstFrame->BufferBytes(), videoFrame->GetRowBytes() );
+
 
           if( _queue.size() < maxDequeDepth ) {
-            LOG(INFO) << "Queueing";
             _queue.push( out );
-            LOG(INFO) << "Queued";
           } else {
             LOG(WARNING) << "Image queue full";
           }
@@ -98,6 +219,7 @@ namespace libvideoio_bm {
           //     rightEyeFrame->GetBytes(&frameBytes);
           //     write(g_videoOutputFile, frameBytes, videoFrame->GetRowBytes() * videoFrame->GetHeight());
           //   }
+
         }
       }
 

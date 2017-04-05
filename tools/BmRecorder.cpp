@@ -36,6 +36,9 @@ void signal_handler( int sig )
 		case SIGINT:
 		keepGoing = false;
 		break;
+		default:
+			keepGoing = false;
+			break;
 	}
 }
 
@@ -51,7 +54,7 @@ int main( int argc, char** argv )
 	signal( SIGINT, signal_handler );
 
 	bool doGui = false;
-
+	const int skip = 1;
 
 	TCLAP::CmdLine cmd("BmRecorder", ' ', "0.1");
 
@@ -145,14 +148,13 @@ int main( int argc, char** argv )
 			cv::Mat image;
 			decklink.getImage(0, image);
 
-	// 	if( !camera->grab( sl::zed::STANDARD, false, false, false ) ) {
-	// 		const bool doDisplayThisFrame = (doDisplay && (count % skip == 0));
+			const bool doDisplayThisFrame = (doGui && (count % skip == 0));
 	//
 	// 		if( svoOutputArg.isSet() ) {
 	//
 	// 			camera->record();
 	//
-	// 			if( doDisplayThisFrame ) {
+ 			if( doDisplayThisFrame ) {
 	// 				// According to the docs, this:
 	// 				//		Get[s] the current side by side YUV 4:2:2 frame, CPU buffer.
 	// 				sl::zed::Mat slRawImage( camera->getCurrentRawRecordedFrame() );
@@ -161,28 +163,18 @@ int main( int argc, char** argv )
 	// 				Mat rawCopy;
 	// 				sl::zed::slMat2cvMat( slRawImage ).reshape( 2, 0 ).copyTo( rawCopy );
 	//
-	// 				display.showRawStereoYUV( rawCopy );
-	// 				display.waitKey();
-	//
-	// 				++displayed;
-	//
-	// 			}
-	//
-	// 		} else if ( doDisplayThisFrame ) {
-	// 				// If you aren't recording, just grab data conventionally
-	//
-	// 				sl::zed::Mat leftImage( camera->retrieveImage( sl::zed::LEFT ) );
-	// 				Mat copy;
-	// 				sl::zed::slMat2cvMat( leftImage ).copyTo( copy );
-	//
-	// 				display.showLeft( copy );
-	// 				display.waitKey();
-	//
-	// 		}
-	//
-	// 		++count;
-	// 		std::this_thread::sleep_for(std::chrono::microseconds(1));
-	//
+					// 	display.showLeft( image );
+					// 	display.waitKey();
+
+					cv::imshow("Image", image);
+					cv::waitKey(1);
+
+	 				++displayed;
+
+			}
+
+	 		++count;
+
 		} else {
 			// if grab() fails
 			LOG(INFO) << "miss";
@@ -200,8 +192,8 @@ int main( int argc, char** argv )
 
 		}
 
-	 	std::chrono::duration<float> dur( std::chrono::steady_clock::now()  - start );
-	//
+	 std::chrono::duration<float> dur( std::chrono::steady_clock::now()  - start );
+
 	LOG(INFO) << "Cleaning up...";
 	decklink.stop();
 

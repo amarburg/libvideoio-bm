@@ -36,6 +36,7 @@ namespace libvideoio_bm {
     unsigned long _frameCount, _maxFrames;
 
     IDeckLinkInput* _deckLinkInput;
+    IDeckLinkVideoConversion *_deckLinkConversion;
 
     active_object::shared_queue< cv::Mat > _queue;
 
