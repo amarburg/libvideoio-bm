@@ -11,7 +11,7 @@ find_package(Boost COMPONENTS filesystem system program_options REQUIRED )  #n.b
 
 ## Default OpenCV version
 set( OPENCV_VERSION 2.4)
-list(APPEND OPENCV_COMPONENTS core highgui)
+list(APPEND OPENCV_COMPONENTS core highgui imgproc )
 
 ## C++ flags applied to all builds
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")

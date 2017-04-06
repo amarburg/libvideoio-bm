@@ -23,6 +23,8 @@ using namespace libvideoio_bm;
 
 #include "libvideoio/G3LogSinks.h"
 #include "libvideoio/Display.h"
+#include "libvideoio/ImageOutput.h"
+#include "libvideoio/VideoOutput.h"
 using namespace libvideoio;
 
 
@@ -66,6 +68,8 @@ int main( int argc, char** argv )
 
 	TCLAP::ValueArg<std::string> videoOutArg("","video-out","",false,"","", cmd);
 	TCLAP::ValueArg<std::string> loggerOutArg("","logger-out","",false,"","", cmd);
+	TCLAP::ValueArg<std::string> imageOutArg("","image-out","image_%09d.png",false,"","printf-formatted name for images", cmd);
+
 
 	TCLAP::SwitchArg guiSwitch("","display","", cmd, false);
 
@@ -87,14 +91,17 @@ int main( int argc, char** argv )
 
 	//
 	// Output validation
-	if( !videoOutArg.isSet() &&  !loggerOutArg.isSet() && !guiSwitch.isSet() ) {
+	if( !videoOutArg.isSet() && !imageOutArg.isSet() && !loggerOutArg.isSet() && !guiSwitch.isSet() ) {
 		LOG(WARNING) << "No output options set.";
 	}
 
 	// int skip = skipArg.getValue();
 	//
 
-		libvideoio::Display display( doGui );
+	libvideoio::Display display( doGui );
+	libvideoio::ImageOutput loggerOutput( loggerOutArg.getValue() );
+	loggerOutput.registerField( 0, "image" );
+	libvideoio::VideoOutput videoOutput( videoOutArg.getValue(), 30 );
 
 	DeckLinkSource decklink;
 	std::thread dlThread( std::ref(decklink) );
@@ -172,6 +179,16 @@ int main( int argc, char** argv )
 	 				++displayed;
 
 			}
+
+			if( imageOutArg.isSet() ) {
+				char outfile[128];
+				snprintf( outfile, 127, imageOutArg.getValue().c_str(), count );
+
+				imwrite( outfile, image );
+			}
+
+			loggerOutput.write( 0, image, count );
+			videoOutput.write( image );
 
 	 		++count;
 
