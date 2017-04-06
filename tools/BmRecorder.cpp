@@ -68,7 +68,7 @@ int main( int argc, char** argv )
 
 	TCLAP::ValueArg<std::string> videoOutArg("","video-out","",false,"","", cmd);
 	TCLAP::ValueArg<std::string> loggerOutArg("","logger-out","",false,"","", cmd);
-	TCLAP::ValueArg<std::string> imageOutArg("","image-out","image_%09d.png",false,"","printf-formatted name for images", cmd);
+	TCLAP::ValueArg<std::string> imageOutArg("","images-out","printf-formatted output filename for images",false,"","printf-formatted name for images", cmd);
 
 
 	TCLAP::SwitchArg guiSwitch("","display","", cmd, false);
