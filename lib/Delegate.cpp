@@ -61,12 +61,13 @@ namespace libvideoio_bm {
    { return E_NOINTERFACE; }
 
    ULONG AddRef()
-   { mat.addref(); return *mat.refcount; }
+   { mat.addref(); return 0; } //*mat.refcount; }
+
    ULONG Release()
    {
        mat.release();
-       if (*mat.refcount == 0) delete this;
-       return *mat.refcount;
+       if (*mat.data == 0) delete this;
+       return 0;  //*mat.refcount;
    }
 
   };
