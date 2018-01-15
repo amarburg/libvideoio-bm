@@ -7,7 +7,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-#include "libvideoio_bm/Delegate.h"
+#include "libvideoio_bm/InputCallback.h"
 
 namespace libvideoio_bm {
 
@@ -30,10 +30,13 @@ namespace libvideoio_bm {
 
        long GetWidth()
        { return mat.rows; }
+
        long GetHeight()
        { return mat.cols; }
+
        long GetRowBytes()
        { return mat.step; }
+
        BMDPixelFormat GetPixelFormat()
        {
          return bmdFormat10BitYUV;  //bmdFormat8BitBGRA;
@@ -72,28 +75,33 @@ namespace libvideoio_bm {
 
   };
 
-  DeckLinkCaptureDelegate::DeckLinkCaptureDelegate( IDeckLinkInput* input, IDeckLinkOutput *output, unsigned int maxFrames )
-  : _refCount(1), _maxFrames( maxFrames ), _frameCount(0), _deckLinkInput(input), _deckLinkOutput(output)
+  InputCallback::InputCallback( const std::shared_ptr<IDeckLinkInput> &input,
+                                const std::shared_ptr<IDeckLinkOutput> &output,
+                                unsigned int maxFrames )
+  : _maxFrames( maxFrames ),
+    _frameCount(0),
+    _deckLinkInput(input),
+    _deckLinkOutput(output)
   {
   }
 
-  ULONG DeckLinkCaptureDelegate::AddRef(void)
-  {
-    return __sync_add_and_fetch(&_refCount, 1);
-  }
+  // ULONG InputCallback::AddRef(void)
+  // {
+  //   return __sync_add_and_fetch(&_refCount, 1);
+  // }
+  //
+  // ULONG InputCallback::Release(void)
+  // {
+  //   int32_t newRefValue = __sync_sub_and_fetch(&_refCount, 1);
+  //   if (newRefValue == 0)
+  //   {
+  //     delete this;
+  //     return 0;
+  //   }
+  //   return newRefValue;
+  // }
 
-  ULONG DeckLinkCaptureDelegate::Release(void)
-  {
-    int32_t newRefValue = __sync_sub_and_fetch(&_refCount, 1);
-    if (newRefValue == 0)
-    {
-      delete this;
-      return 0;
-    }
-    return newRefValue;
-  }
-
-  HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame,
+  HRESULT InputCallback::VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame,
     IDeckLinkAudioInputPacket* audioFrame)
     {
       // IDeckLinkVideoFrame *rightEyeFrame = nullptr;
@@ -290,7 +298,7 @@ namespace libvideoio_bm {
       return S_OK;
     }
 
-    HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChangedEvents events, IDeckLinkDisplayMode *mode, BMDDetectedVideoInputFormatFlags formatFlags)
+    HRESULT InputCallback::VideoInputFormatChanged(BMDVideoInputFormatChangedEvents events, IDeckLinkDisplayMode *mode, BMDDetectedVideoInputFormatFlags formatFlags)
     {
       LOG(INFO) << "Received Video Input Format Changed";
 
@@ -328,7 +336,7 @@ namespace libvideoio_bm {
       return S_OK;
     }
 
-    // cv::Mat DeckLinkCaptureDelegate::popImage() {
+    // cv::Mat InputCallback::popImage() {
     //   ThreadSynchronizer::LockGuard lock(_imageReady.mutex());
     //
     //   if( _imageQueue.size() == 0 ) return cv::Mat();

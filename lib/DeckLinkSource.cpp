@@ -10,32 +10,39 @@ namespace libvideoio_bm {
   DeckLinkSource::DeckLinkSource()
   : DataSource(),
   _initialized( false ),
+  _deckLink( nullptr ),
   _deckLinkInput( nullptr ),
-  _delegate( nullptr )
+  _deckLinkOutput( nullptr ),
+  _inputCallback( nullptr ),
+  _outputCallback(nullptr)
   {
     //initialize();
   }
 
   DeckLinkSource::~DeckLinkSource()
   {
+    if( _deckLinkOutput ) {
+      // Disable the video input interface
+      _deckLinkOutput->DisableVideoOutput();
+    }
+
     if( _deckLinkInput ) {
       _deckLinkInput->StopStreams();
-      free( _deckLinkInput );
     }
+
   }
 
   // Thread entry point
   void DeckLinkSource::operator()() {
-     initialize();
-     start();
-     doneSync.wait();
-     stop();
-    }
+    initialize();
+    startStreams();
+    doneSync.wait();
+    stopStreams();
+  }
 
   void DeckLinkSource::initialize()
   {
-    IDeckLinkIterator *deckLinkIterator = NULL;
-    IDeckLink *deckLink = NULL;
+    // IDeckLink *deckLink = NULL;
     HRESULT result;
 
     // Hardcode some parameters for now
@@ -43,54 +50,22 @@ namespace libvideoio_bm {
     BMDPixelFormat m_pixelFormat = bmdFormat10BitYUV;
     //BMDTimecodeFormat m_timecodeFormat;
 
-    // Get the DeckLink device
-    deckLinkIterator = CreateDeckLinkIteratorInstance();
-    if (!deckLinkIterator)
-    {
-      LOG(WARNING) << "This application requires the DeckLink drivers installed.";
-      return;
+    if( !_deckLink ) {
+      if( !findDeckLink() ) {
+        LOG(WARNING) << "Couldn't find Decklink card";
+        return;
+      }
     }
 
-    //idx = g_config.m_deckLinkIndex;
-    //
-    while ((result = deckLinkIterator->Next(&deckLink)) == S_OK)
-    {
+    CHECK( (bool)_deckLink ) << "_deckLink not set";
 
     char *modelName, *displayName;
-    if( deckLink->GetModelName( (const char **)&modelName ) != S_OK ) {
+    if( _deckLink->GetModelName( (const char **)&modelName ) != S_OK ) {
       LOG(WARNING) << "Unable to query model name.";
       return;
     }
 
-    if( deckLink->GetDisplayName( (const char **)&displayName ) != S_OK ) {
-      LOG(WARNING) << "Unable to query display name.";
-      return;
-    }
-
-    LOG(INFO) << "Using card \"" << modelName << "\" with display name \"" << displayName << "\"";
-
-    free(modelName);
-    free(displayName);
-
-            deckLink->Release();
-    }
-
-
-	free(deckLinkIterator);
-    deckLinkIterator = CreateDeckLinkIteratorInstance();
-    // Use first device
-    if( (result = deckLinkIterator->Next(&deckLink)) != S_OK) {
-      LOG(WARNING) << "Couldn't get information on the first DeckLink object.";
-      return;
-    }
-
-    char *modelName, *displayName;
-    if( deckLink->GetModelName( (const char **)&modelName ) != S_OK ) {
-      LOG(WARNING) << "Unable to query model name.";
-      return;
-    }
-
-    if( deckLink->GetDisplayName( (const char **)&displayName ) != S_OK ) {
+    if( _deckLink->GetDisplayName( (const char **)&displayName ) != S_OK ) {
       LOG(WARNING) << "Unable to query display name.";
       return;
     }
@@ -101,19 +76,11 @@ namespace libvideoio_bm {
     free(displayName);
 
     // Get the input (capture) interface of the DeckLink device
-    result = deckLink->QueryInterface(IID_IDeckLinkInput, (void**)&_deckLinkInput);
+    result = _deckLink->QueryInterface(IID_IDeckLinkInput, (void**)&_deckLinkInput);
     if (result != S_OK) {
       LOG(WARNING) << "Couldn't get input for Decklink";
       return;
     }
-
-
-    result = deckLink->QueryInterface(IID_IDeckLinkOutput, (void**)&_deckLinkOutput);
-    if (result != S_OK) {
-      LOG(WARNING) << "Couldn't get input for Decklink";
-      return;
-    }
-
 
     IDeckLinkAttributes* deckLinkAttributes = NULL;
     bool formatDetectionSupported;
@@ -121,7 +88,7 @@ namespace libvideoio_bm {
     //       if (g_config.m_displayModeIndex == -1)
     //       {
     // Check the card supports format detection
-    result = deckLink->QueryInterface(IID_IDeckLinkAttributes, (void**)&deckLinkAttributes);
+    result = _deckLink->QueryInterface(IID_IDeckLinkAttributes, (void**)&deckLinkAttributes);
     if (result == S_OK)
     {
       result = deckLinkAttributes->GetFlag(BMDDeckLinkSupportsInputFormatDetection, &formatDetectionSupported);
@@ -156,7 +123,6 @@ namespace libvideoio_bm {
 
     // Use first displayMode for now
     while( displayModeIterator->Next( &displayModeItr ) == S_OK ) {
-
 
       char *displayModeName = nullptr;
       if( displayModeItr->GetName( (const char **)&displayModeName) != S_OK ) {
@@ -202,9 +168,10 @@ namespace libvideoio_bm {
     // Check display mode is supported with given options
     BMDDisplayModeSupport displayModeSupported;
     result = _deckLinkInput->DoesSupportVideoMode(displayMode->GetDisplayMode(),
-                                                  m_pixelFormat,
-                                                  bmdVideoInputFlagDefault,
-                                                  &displayModeSupported, NULL);
+    m_pixelFormat,
+    bmdVideoInputFlagDefault,
+    &displayModeSupported, NULL);
+
     if (result != S_OK) {
       LOG(WARNING) << "Error checking if DeckLinkInput supports this mode";
       return;
@@ -229,13 +196,14 @@ namespace libvideoio_bm {
     //  g_config.DisplayConfiguration();
     //
     //  // Configure the capture callback
-    _delegate = new DeckLinkCaptureDelegate( _deckLinkInput, _deckLinkOutput );
-    _deckLinkInput->SetCallback(_delegate);
+    _inputCallback.reset( new InputCallback( _deckLinkInput, _deckLinkOutput ) );
+    _deckLinkInput->SetCallback(_inputCallback.get());
 
     //
     // Start capturing
     result = _deckLinkInput->EnableVideoInput(displayMode->GetDisplayMode(),
-    						m_pixelFormat, bmdVideoInputEnableFormatDetection);
+    m_pixelFormat,
+    bmdVideoInputEnableFormatDetection);
     if (result != S_OK)
     {
       LOG(WARNING) << "Failed to enable video input. Is another application using the card?";
@@ -246,7 +214,7 @@ namespace libvideoio_bm {
     initializedSync.notify();
   }
 
-  void DeckLinkSource::start( void )
+  void DeckLinkSource::startStreams( void )
   {
     //
     //  result = g_deckLinkInput->EnableAudioInput(bmdAudioSampleRate48kHz, g_config.m_audioSampleDepth, g_config.m_audioChannels);
@@ -262,7 +230,7 @@ namespace libvideoio_bm {
 
   }
 
-  void DeckLinkSource::stop( void )
+  void DeckLinkSource::stopStreams( void )
   {
     auto result = _deckLinkInput->StopStreams();
     if (result != S_OK) {
@@ -273,14 +241,14 @@ namespace libvideoio_bm {
 
   bool DeckLinkSource::grab( void )
   {
-    if( _delegate ) {
-      if( _delegate->queue().wait_for_pop(_grabbedImage, std::chrono::milliseconds(100) ) == false ) {
+    if( _inputCallback ) {
+      if( _inputCallback->queue().wait_for_pop(_grabbedImage, std::chrono::milliseconds(100) ) == false ) {
         LOG(WARNING) << "Timeout waiting for image";
         return false;
       }
       LOG(INFO) << "Grabbing image";
 
-      // _grabbedImage = _delegate->popImage();
+      // _grabbedImage = _inputCallback->popImage();
 
       // Ifdesired,enumeratethesupportedcapturevideomodesbycalling IDeckLinkInput::GetDisplayModeIterator. For each reported capture mode, call IDeckLinkInput::DoesSupportVideoMode to check if the combination of the video mode and pixel format is supported.
       //  IDeckLinkInput::EnableVideoInput
@@ -305,15 +273,149 @@ namespace libvideoio_bm {
     return false;
   }
 
+  bool DeckLinkSource::findDeckLink() {
+
+    HRESULT result;
+
+    // Get the DeckLink device
+    IDeckLinkIterator *deckLinkIterator = CreateDeckLinkIteratorInstance();
+    if (!deckLinkIterator)
+    {
+      LOG(WARNING) << "This application requires the DeckLink drivers installed.";
+      return false;
+    }
+
+    //idx = g_config.m_deckLinkIndex;
+    //
+    int i = 0;
+    IDeckLink *deckLink = nullptr;
+    while ((result = deckLinkIterator->Next(&deckLink)) == S_OK)
+    {
+
+      char *modelName, *displayName;
+      if( deckLink->GetModelName( (const char **)&modelName ) != S_OK ) {
+        LOG(WARNING) << "Unable to query model name.";
+        return false;
+      }
+
+      if( deckLink->GetDisplayName( (const char **)&displayName ) != S_OK ) {
+        LOG(WARNING) << "Unable to query display name.";
+        return false;
+      }
+
+      LOG(INFO) << "Card " << i << " \"" << modelName << "\" with display name \"" << displayName << "\"";
+
+      free(modelName);
+      free(displayName);
+
+      deckLink->Release();
+
+      ++i;
+    }
+
+    free(deckLinkIterator);
+
+    deckLinkIterator = CreateDeckLinkIteratorInstance();
+    // Just use the first device for now
+
+    if( (result = deckLinkIterator->Next(&deckLink)) != S_OK) {
+      LOG(WARNING) << "Couldn't get information on the first DeckLink object.";
+      return false;
+    }
+    _deckLink.reset(deckLink);
+
+    return true;
+  }
+
+  bool DeckLinkSource::createVideoOutput()
+  {
+    // Video mode parameters
+    const BMDDisplayMode      kDisplayMode = bmdModeHD1080i50;
+    const BMDVideoOutputFlags kOutputFlag  = bmdVideoOutputVANC;
+    const BMDPixelFormat      kPixelFormat = bmdFormat10BitYUV;
+
+    HRESULT result;
+
+    // Obtain the output interface for the DeckLink device
+    IDeckLinkOutput *deckLinkOutput = nullptr;
+    result = _deckLink->QueryInterface(IID_IDeckLinkOutput, (void**)&deckLinkOutput);
+    if(result != S_OK)
+    {
+      LOGF(WARNING, "Could not obtain the IDeckLinkInput interface - result = %08x\n", result);
+      return false;
+    }
+
+    _deckLinkOutput.reset( deckLinkOutput );
+    _outputCallback.reset( new OutputCallback( _deckLinkOutput ));
+
+    // Set the callback object to the DeckLink device's output interface
+    result = _deckLinkOutput->SetScheduledFrameCompletionCallback(_outputCallback.get());
+    if(result != S_OK)
+    {
+      LOGF(WARNING, "Could not set callback - result = %08x\n", result);
+      return false;
+    }
+
+    // Enable video output
+    result = _deckLinkOutput->EnableVideoOutput(kDisplayMode, kOutputFlag);
+    if(result != S_OK)
+    {
+      LOGF(WARNING, "Could not enable video output - result = %08x\n", result);
+      return false;
+    }
+
+    return true;
+  }
+
+  bool DeckLinkSource::sendSDICameraControl()
+  {
+    if( !_deckLinkOutput ) {
+      if (!createVideoOutput()) return false;
+    }
+
+    CHECK(_deckLinkOutput);
+
+    std::unique_ptr<IDeckLinkMutableVideoFrame> videoFrameBlue( CreateFrame(_deckLinkOutput) );
+
+    // These are magic values for 1080i50   See SDK manual page 213
+    const uint32_t kFrameDuration = 1000;
+    const uint32_t kTimeScale = 25000;
+
+    auto result = deckLinkOutput->ScheduleVideoFrame(*videoFrameBlue, 0, kFrameDuration, kTimeScale);
+    if(result != S_OK)
+    {
+      LOG(WARNING) << "Could not schedule video frame - result = " << std::hex << result;
+      return false;
+    }
+
+    //
+    result = deckLinkOutput->StartScheduledPlayback(0, kTimeScale, 1.0);
+    if(result != S_OK)
+    {
+      LOG(WARNING) << "Could not schedule video frame - result = " << std::hex << result;
+      return false;
+    }
+
+    // And stop after one frame
+    BMDTimeValue stopTime;
+    result = deckLinkOutput->StopScheduledPlayback(kFrameDuration, &stopTime, kTimeScale);
+
+
+    return true;
+  }
+
+
+
+
   int DeckLinkSource::getImage( int i, cv::Mat &mat )
   {
     switch(i) {
       case 0:
-            mat = _grabbedImage;
-            return 1;
-            break;
+      mat = _grabbedImage;
+      return 1;
+      break;
       default:
-            return 0;
+      return 0;
     }
   }
 

@@ -2,10 +2,15 @@
 
 #include <atomic>
 
-#include "libvideoio/DataSource.h"
-#include "Delegate.h"
 
 #include <DeckLinkAPI.h>
+
+#include "libvideoio/DataSource.h"
+
+#include "InputCallback.h"
+#include "OutputCallback.h"
+#include "SDICameraControl.h"
+
 
 namespace libvideoio_bm {
 
@@ -16,7 +21,7 @@ namespace libvideoio_bm {
 class DeckLinkSource : public libvideoio::DataSource {
 public:
 
-	DeckLinkSource( );
+	DeckLinkSource();
   ~DeckLinkSource();
 
   // Thread entry point
@@ -26,6 +31,9 @@ public:
   bool initialized() const { return _initialized; }
 
   virtual int numFrames( void ) const { return -1; }
+
+  bool createVideoOutput();
+  bool sendSDICameraControl();
 
   // // Delete copy operators
   // DeckLinkSource( const DeckLinkSource & ) = delete;
@@ -37,24 +45,28 @@ public:
 
   virtual ImageSize imageSize( void ) const;
 
-  void start();
-  void stop();
+  // These start and stop the input streams
+  void startStreams();
+  void stopStreams();
 
   ThreadSynchronizer doneSync;
   ThreadSynchronizer initializedSync;
 
 protected:
 
+  bool findDeckLink();
 
   cv::Mat _grabbedImage;
 
   bool _initialized;
 
-  IDeckLinkInput* _deckLinkInput;
-  IDeckLinkOutput* _deckLinkOutput;
+  // For now assume an object uses just one Decklink board
+  std::unique_ptr<IDeckLink> _deckLink;
+  std::shared_ptr<IDeckLinkInput> _deckLinkInput;
+  std::shared_ptr<IDeckLinkOutput> _deckLinkOutput;
 
-
-  DeckLinkCaptureDelegate *_delegate;
+  std::shared_ptr<InputCallback> _inputCallback;
+  std::shared_ptr<OutputCallback> _outputCallback;
 
 
 };

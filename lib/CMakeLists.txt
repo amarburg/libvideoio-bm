@@ -3,7 +3,7 @@
 fips_begin_module( videoio_bm )
   file(GLOB VIDEOIO_DECKLINK_SRCS *.cpp )
 
-  ## The Blackmagic API is distributed as source code...
+  ## The Blackmagic API is distributed as source ...
   fips_files(
     ${VIDEOIO_DECKLINK_SRCS}
     ${BLACKMAGIC_SRCS}
