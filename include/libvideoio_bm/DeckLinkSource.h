@@ -24,15 +24,24 @@ public:
 	DeckLinkSource();
   ~DeckLinkSource();
 
+
+  // These can be called expicitly before operator(),
+  // Otherwise it will assume defaults.
+  bool setDeckLink( int cardno = 0 );
+
+  bool createVideoInput( const std::string desiredMode = "1080p29.97", bool do3D = false );
+  bool createVideoOutput();
+
+
+
   // Thread entry point
   void operator()();
 
-  void initialize();
+  bool initialize();
   bool initialized() const { return _initialized; }
 
   virtual int numFrames( void ) const { return -1; }
 
-  bool createVideoOutput();
   bool sendSDICameraControl();
 
   // // Delete copy operators
@@ -54,8 +63,6 @@ public:
 
 protected:
 
-  bool findDeckLink();
-
   cv::Mat _grabbedImage;
 
   bool _initialized;
@@ -68,7 +75,6 @@ protected:
 
   InputCallback *_inputCallback;
   OutputCallback *_outputCallback;
-
 
 };
 
