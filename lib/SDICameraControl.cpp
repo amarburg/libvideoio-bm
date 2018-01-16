@@ -30,6 +30,11 @@
 
 //#include "platform.h"
 
+#include <stdint.h>
+#include <DeckLinkAPI.h>
+
+#include "g3log/g3log.hpp"
+
 
 // Frame parameters
 // const uint32_t kFrameDuration = 1000;
@@ -37,6 +42,9 @@
 const uint32_t kFrameWidth = 1920;
 const uint32_t kFrameHeight = 1080;
 const uint32_t kRowBytes = 5120;
+
+const BMDPixelFormat      kPixelFormat = bmdFormat10BitYUV;
+
 
 // 10-bit YUV blue pixels
 const uint32_t kBlueData[4] = { 0x40aa298, 0x2a8a62a8, 0x298aa040, 0x2a8102a8 };
@@ -145,7 +153,7 @@ static void SetVancData(IDeckLinkVideoFrameAncillary* ancillary)
 	result = ancillary->GetBufferForVerticalBlankingLine(kSDIRemoteControlLine, (void **)&buffer);
 	if (result != S_OK)
 	{
-		fprintf(stderr, "Could not get buffer for Vertical blanking line - result = %08x\n", result);
+		LOGF(WARNING, "Could not get buffer for Vertical blanking line - result = %08x\n", result);
 		return;
 	}
 	// Write camera control data to buffer
@@ -170,11 +178,11 @@ static void FillBlue(IDeckLinkMutableVideoFrame* theFrame)
 	}
 }
 
-IDeckLinkMutableVideoFrame* CreateSDICameraControlFrame(IDeckLinkOutput* deckLinkOutput)
+IDeckLinkMutableVideoFrame* CreateSDICameraControlFrame( IDeckLinkOutput *deckLinkOutput )
 {
 	HRESULT                         result;
-	IDeckLinkMutableVideoFrame*     frame = NULL;
-	IDeckLinkVideoFrameAncillary*	ancillaryData = NULL;
+	IDeckLinkMutableVideoFrame*     frame = nullptr;
+	IDeckLinkVideoFrameAncillary*	ancillaryData = nullptr;
 
 	result = deckLinkOutput->CreateVideoFrame(kFrameWidth, kFrameHeight, kRowBytes, kPixelFormat, bmdFrameFlagDefault, &frame);
 	if (result != S_OK)

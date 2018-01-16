@@ -75,8 +75,8 @@ namespace libvideoio_bm {
 
   };
 
-  InputCallback::InputCallback( const std::shared_ptr<IDeckLinkInput> &input,
-                                const std::shared_ptr<IDeckLinkOutput> &output,
+  InputCallback::InputCallback( IDeckLinkInput *input,
+                                IDeckLinkOutput *output,
                                 unsigned int maxFrames )
   : _maxFrames( maxFrames ),
     _frameCount(0),
@@ -85,21 +85,21 @@ namespace libvideoio_bm {
   {
   }
 
-  // ULONG InputCallback::AddRef(void)
-  // {
-  //   return __sync_add_and_fetch(&_refCount, 1);
-  // }
-  //
-  // ULONG InputCallback::Release(void)
-  // {
-  //   int32_t newRefValue = __sync_sub_and_fetch(&_refCount, 1);
-  //   if (newRefValue == 0)
-  //   {
-  //     delete this;
-  //     return 0;
-  //   }
-  //   return newRefValue;
-  // }
+  ULONG InputCallback::AddRef(void)
+  {
+    return __sync_add_and_fetch(&_refCount, 1);
+  }
+
+  ULONG InputCallback::Release(void)
+  {
+    int32_t newRefValue = __sync_sub_and_fetch(&_refCount, 1);
+    if (newRefValue == 0)
+    {
+      delete this;
+      return 0;
+    }
+    return newRefValue;
+  }
 
   HRESULT InputCallback::VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame,
     IDeckLinkAudioInputPacket* audioFrame)

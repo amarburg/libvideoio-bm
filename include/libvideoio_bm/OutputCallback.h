@@ -7,7 +7,7 @@ namespace libvideoio_bm {
 class OutputCallback: public IDeckLinkVideoOutputCallback
 {
 public:
-	OutputCallback(const std::shared_ptr<IDeckLinkOutput> &deckLinkOutput)
+	OutputCallback( IDeckLinkOutput *deckLinkOutput)
     : _deckLinkOutput( deckLinkOutput ),
       _totalFramesScheduled(0)
 	{
@@ -15,6 +15,7 @@ public:
 
 	virtual ~OutputCallback(void)
 	{
+    if( _deckLinkOutput ) _deckLinkOutput->Release();
 	}
 
 	HRESULT	STDMETHODCALLTYPE ScheduledFrameCompleted(IDeckLinkVideoFrame* completedFrame, BMDOutputFrameCompletionResult result)
@@ -54,7 +55,7 @@ public:
 
 private:
 
-	std::shared_ptr<IDeckLinkOutput>  _deckLinkOutput;
+IDeckLinkOutput *_deckLinkOutput;
   unsigned int _totalFramesScheduled;
 
 };

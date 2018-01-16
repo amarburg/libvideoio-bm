@@ -6,6 +6,6 @@
 namespace libvideoio_bm {
 
 
-  IDeckLinkMutableVideoFrame* CreateSDICameraControlFrame(IDeckLinkOutput* deckLinkOutput);
+  IDeckLinkMutableVideoFrame* CreateSDICameraControlFrame( IDeckLinkOutput *deckLinkOutput);
 
 }

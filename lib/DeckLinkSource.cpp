@@ -24,10 +24,12 @@ namespace libvideoio_bm {
     if( _deckLinkOutput ) {
       // Disable the video input interface
       _deckLinkOutput->DisableVideoOutput();
+      _deckLinkOutput->Release();
     }
 
     if( _deckLinkInput ) {
       _deckLinkInput->StopStreams();
+      _deckLinkInput->Release();
     }
 
   }
@@ -196,8 +198,8 @@ namespace libvideoio_bm {
     //  g_config.DisplayConfiguration();
     //
     //  // Configure the capture callback
-    _inputCallback.reset( new InputCallback( _deckLinkInput, _deckLinkOutput ) );
-    _deckLinkInput->SetCallback(_inputCallback.get());
+    _inputCallback = new InputCallback( _deckLinkInput, _deckLinkOutput );
+    _deckLinkInput->SetCallback(_inputCallback);
 
     //
     // Start capturing
@@ -222,6 +224,8 @@ namespace libvideoio_bm {
     //          goto bail;
     //
 
+  CHECK( _deckLink != nullptr );
+
     auto result = _deckLinkInput->StartStreams();
     if (result != S_OK) {
       LOG(WARNING) << "Failed to start streams";
@@ -232,6 +236,7 @@ namespace libvideoio_bm {
 
   void DeckLinkSource::stopStreams( void )
   {
+    CHECK( _deckLinkInput != nullptr );
     auto result = _deckLinkInput->StopStreams();
     if (result != S_OK) {
       LOG(WARNING) << "Failed to stop streams";
@@ -322,7 +327,7 @@ namespace libvideoio_bm {
       LOG(WARNING) << "Couldn't get information on the first DeckLink object.";
       return false;
     }
-    _deckLink.reset(deckLink);
+    _deckLink = deckLink;
 
     return true;
   }
@@ -332,7 +337,6 @@ namespace libvideoio_bm {
     // Video mode parameters
     const BMDDisplayMode      kDisplayMode = bmdModeHD1080i50;
     const BMDVideoOutputFlags kOutputFlag  = bmdVideoOutputVANC;
-    const BMDPixelFormat      kPixelFormat = bmdFormat10BitYUV;
 
     HRESULT result;
 
@@ -345,11 +349,11 @@ namespace libvideoio_bm {
       return false;
     }
 
-    _deckLinkOutput.reset( deckLinkOutput );
-    _outputCallback.reset( new OutputCallback( _deckLinkOutput ));
+    _deckLinkOutput = deckLinkOutput;
+    _outputCallback = new OutputCallback( _deckLinkOutput );
 
     // Set the callback object to the DeckLink device's output interface
-    result = _deckLinkOutput->SetScheduledFrameCompletionCallback(_outputCallback.get());
+    result = _deckLinkOutput->SetScheduledFrameCompletionCallback(_outputCallback );
     if(result != S_OK)
     {
       LOGF(WARNING, "Could not set callback - result = %08x\n", result);
@@ -373,15 +377,15 @@ namespace libvideoio_bm {
       if (!createVideoOutput()) return false;
     }
 
-    CHECK(_deckLinkOutput);
+    CHECK( _deckLinkOutput != nullptr );
 
-    std::unique_ptr<IDeckLinkMutableVideoFrame> videoFrameBlue( CreateFrame(_deckLinkOutput) );
+    IDeckLinkMutableVideoFrame *videoFrameBlue = CreateSDICameraControlFrame(_deckLinkOutput);
 
     // These are magic values for 1080i50   See SDK manual page 213
     const uint32_t kFrameDuration = 1000;
     const uint32_t kTimeScale = 25000;
 
-    auto result = deckLinkOutput->ScheduleVideoFrame(*videoFrameBlue, 0, kFrameDuration, kTimeScale);
+    auto result = _deckLinkOutput->ScheduleVideoFrame(videoFrameBlue, 0, kFrameDuration, kTimeScale);
     if(result != S_OK)
     {
       LOG(WARNING) << "Could not schedule video frame - result = " << std::hex << result;
@@ -389,16 +393,21 @@ namespace libvideoio_bm {
     }
 
     //
-    result = deckLinkOutput->StartScheduledPlayback(0, kTimeScale, 1.0);
+    result = _deckLinkOutput->StartScheduledPlayback(0, kTimeScale, 1.0);
     if(result != S_OK)
     {
-      LOG(WARNING) << "Could not schedule video frame - result = " << std::hex << result;
+      LOG(WARNING) << "Could not start video playback - result = " << std::hex << result;
       return false;
     }
 
     // And stop after one frame
     BMDTimeValue stopTime;
-    result = deckLinkOutput->StopScheduledPlayback(kFrameDuration, &stopTime, kTimeScale);
+    result = _deckLinkOutput->StopScheduledPlayback(kFrameDuration, &stopTime, kTimeScale);
+    if(result != S_OK)
+    {
+      LOG(WARNING) << "Could not stop video playback - result = " << std::hex << result;
+      return false;
+    }
 
 
     return true;
@@ -411,11 +420,11 @@ namespace libvideoio_bm {
   {
     switch(i) {
       case 0:
-      mat = _grabbedImage;
-      return 1;
-      break;
+          mat = _grabbedImage;
+          return 1;
+          break;
       default:
-      return 0;
+          return 0;
     }
   }
 

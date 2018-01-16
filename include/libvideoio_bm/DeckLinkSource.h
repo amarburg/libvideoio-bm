@@ -61,12 +61,13 @@ protected:
   bool _initialized;
 
   // For now assume an object uses just one Decklink board
-  std::unique_ptr<IDeckLink> _deckLink;
-  std::shared_ptr<IDeckLinkInput> _deckLinkInput;
-  std::shared_ptr<IDeckLinkOutput> _deckLinkOutput;
+  // Stupid COM model precludes use of auto ptrs
+  IDeckLink *_deckLink;
+  IDeckLinkInput *_deckLinkInput;
+  IDeckLinkOutput *_deckLinkOutput;
 
-  std::shared_ptr<InputCallback> _inputCallback;
-  std::shared_ptr<OutputCallback> _outputCallback;
+  InputCallback *_inputCallback;
+  OutputCallback *_outputCallback;
 
 
 };

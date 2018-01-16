@@ -14,8 +14,8 @@ namespace libvideoio_bm {
   class InputCallback : public IDeckLinkInputCallback
   {
   public:
-    InputCallback(  const std::shared_ptr<IDeckLinkInput> &input, 
-            const std::shared_ptr<IDeckLinkOutput> &output,
+    InputCallback(  IDeckLinkInput *input,
+            IDeckLinkOutput *output,
             unsigned int maxFrames = -1 );
 
     virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, LPVOID *ppv) { return E_NOINTERFACE; }
@@ -37,8 +37,8 @@ namespace libvideoio_bm {
 
     unsigned long _frameCount, _maxFrames;
 
-    std::shared_ptr<IDeckLinkInput> _deckLinkInput;
-    std::shared_ptr<IDeckLinkOutput> _deckLinkOutput;
+    IDeckLinkInput *_deckLinkInput;
+    IDeckLinkOutput *_deckLinkOutput;
 
     //IDeckLinkVideoConversion *_deckLinkConversion;
 
