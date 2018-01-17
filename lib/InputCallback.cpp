@@ -38,10 +38,10 @@ namespace libvideoio_bm {
   }
 
   HRESULT InputCallback::VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame,
-    IDeckLinkAudioInputPacket* audioFrame)
+                                              IDeckLinkAudioInputPacket* audioFrame)
     {
-      // IDeckLinkVideoFrame *rightEyeFrame = nullptr;
-//      IDeckLinkVideoFrame3DExtensions *threeDExtensions = nullptr;
+       IDeckLinkVideoFrame *rightEyeFrame = nullptr;
+       IDeckLinkVideoFrame3DExtensions *threeDExtensions = nullptr;
 //      void *audioFrameBytes;
 
       // Handle Video Frame
@@ -49,14 +49,14 @@ namespace libvideoio_bm {
       {
         // If 3D mode is enabled we retreive the 3D extensions interface which gives.
         // us access to the right eye frame by calling GetFrameForRightEye() .
-        // if ( (videoFrame->QueryInterface(IID_IDeckLinkVideoFrame3DExtensions, (void **) &threeDExtensions) != S_OK) ||
-        //                                   (threeDExtensions->GetFrameForRightEye(&rightEyeFrame) != S_OK))
-        // {
-        //   rightEyeFrame = nullptr;
-        // }
-        //
-        // if (threeDExtensions)
-        // threeDExtensions->Release();
+        if ( (videoFrame->QueryInterface(IID_IDeckLinkVideoFrame3DExtensions, (void **) &threeDExtensions) != S_OK) ||
+                                          (threeDExtensions->GetFrameForRightEye(&rightEyeFrame) != S_OK))
+        {
+          rightEyeFrame = nullptr;
+        }
+
+        if (threeDExtensions)
+        threeDExtensions->Release();
 
         if (videoFrame->GetFlags() & bmdFrameHasNoInputSource)
         {
@@ -64,6 +64,8 @@ namespace libvideoio_bm {
         }
         else
         {
+          _frameCount++;
+
           // const char *timecodeString = nullptr;
           // if (g_config.m_timecodeFormat != 0)
           // {
@@ -75,10 +77,10 @@ namespace libvideoio_bm {
           // }
 
           LOGF(INFO, "Frame received (#%lu) %li bytes, %lu x %lu",
-          _frameCount,
-          // timecodeString != nullptr ? timecodeString : "No timecode",
-          videoFrame->GetRowBytes() * videoFrame->GetHeight(),
-          videoFrame->GetWidth(), videoFrame->GetHeight() );
+                      _frameCount,
+                      // timecodeString != nullptr ? timecodeString : "No timecode",
+                      videoFrame->GetRowBytes() * videoFrame->GetHeight(),
+                      videoFrame->GetWidth(), videoFrame->GetHeight() );
           //
           // if (timecodeString)
           // free((void*)timecodeString);
