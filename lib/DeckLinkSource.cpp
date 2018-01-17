@@ -77,7 +77,7 @@ namespace libvideoio_bm {
     return true;
   }
 
-  bool DeckLinkSource::createVideoInput( const std::string desiredMode, bool do3D )
+  bool DeckLinkSource::createVideoInput( const BMDDisplayMode desiredMode, bool do3D )
 {
   HRESULT result;
 
@@ -136,11 +136,11 @@ namespace libvideoio_bm {
   // Iterate through available modes
   while( displayModeIterator->Next( &displayMode ) == S_OK ) {
 
-    char *displayModeName = nullptr;
-    if( displayMode->GetName( (const char **)&displayModeName) != S_OK ) {
-      LOG(WARNING) << "Unable to get name of DisplayMode";
-      return false;
-    }
+    // char *displayModeName = nullptr;
+    // if( displayMode->GetName( (const char **)&displayModeName) != S_OK ) {
+    //   LOG(WARNING) << "Unable to get name of DisplayMode";
+    //   return false;
+    // }
 
     // BMDTimeValue timeValue = 0;
     // BMDTimeScale timeScale = 0;
@@ -156,9 +156,8 @@ namespace libvideoio_bm {
     // displayModeItr->GetWidth() << " x " << displayModeItr->GetHeight() <<
     // ", " << 1.0/frameRate << " FPS";
 
-    string modeString( displayModeName );
 
-    if( string(displayModeName) == desiredMode ) {
+    if( displayMode->GetDisplayMode() == desiredMode ) {
 
       //Check flags
       BMDDisplayModeFlags flags = displayMode->GetFlags();
@@ -192,14 +191,11 @@ namespace libvideoio_bm {
         return false;
       }
 
-      // Save this for later...
-      displayMode = displayMode;
-
       // If you've made it here, great
       break;
     }
 
-    free( displayModeName );
+    // free( displayModeName );
   }
 
   free( displayMode );
@@ -226,41 +222,65 @@ namespace libvideoio_bm {
   }
 
 
-  bool DeckLinkSource::createVideoOutput()
+  bool DeckLinkSource::createVideoOutput( const BMDDisplayMode desiredMode, bool do3D )
   {
     // Video mode parameters
-    const BMDDisplayMode      kDisplayMode = bmdModeHD1080i50;
-    const BMDVideoOutputFlags kOutputFlag  = bmdVideoOutputVANC;
+//    const BMDDisplayMode      kDisplayMode = bmdModeHD1080i50;
+   BMDVideoOutputFlags outputFlags  = bmdVideoOutputVANC;
+   IDeckLinkDisplayMode *displayMode = nullptr;
 
     HRESULT result;
 
     // Obtain the output interface for the DeckLink device
-    IDeckLinkOutput *deckLinkOutput = nullptr;
-    result = _deckLink->QueryInterface(IID_IDeckLinkOutput, (void**)&deckLinkOutput);
+    {
+      IDeckLinkOutput *deckLinkOutput = nullptr;
+      result = _deckLink->QueryInterface(IID_IDeckLinkOutput, (void**)&deckLinkOutput);
+      if(result != S_OK)
+      {
+        LOGF(WARNING, "Could not obtain the IDeckLinkInput interface - result = %08x\n", result);
+        return false;
+      }
+
+      _deckLinkOutput = deckLinkOutput;
+    }
+    CHECK( _deckLinkOutput != nullptr );
+
+    if( do3D ) {
+      outputFlags |= bmdVideoOutputDualStream3D;
+    }
+
+    BMDDisplayModeSupport support;
+
+    if( _deckLinkOutput->DoesSupportVideoMode( desiredMode, 0, outputFlags, &support, &displayMode ) != S_OK) {
+    LOG(WARNING) << "Unable to find a supported output mode";
+    return false;
+  }
+
+    if( support == bmdDisplayModeNotSupported ) {
+LOG(WARNING) << "Display mode not supported";
+  return false;
+}
+
+
+    // Enable video output
+    result = _deckLinkOutput->EnableVideoOutput(desiredMode, outputFlags);
     if(result != S_OK)
     {
-      LOGF(WARNING, "Could not obtain the IDeckLinkInput interface - result = %08x\n", result);
+      LOGF(WARNING, "Could not enable video output - result = %08x\n", result);
       return false;
     }
 
-    _deckLinkOutput = deckLinkOutput;
-    _outputCallback = new OutputCallback( _deckLinkOutput );
-
     // Set the callback object to the DeckLink device's output interface
-    result = _deckLinkOutput->SetScheduledFrameCompletionCallback(_outputCallback );
+    _outputCallback = new OutputCallback( _deckLinkOutput, displayMode );
+    result = _deckLinkOutput->SetScheduledFrameCompletionCallback( _outputCallback );
     if(result != S_OK)
     {
       LOGF(WARNING, "Could not set callback - result = %08x\n", result);
       return false;
     }
 
-    // Enable video output
-    result = _deckLinkOutput->EnableVideoOutput(kDisplayMode, kOutputFlag);
-    if(result != S_OK)
-    {
-      LOGF(WARNING, "Could not enable video output - result = %08x\n", result);
-      return false;
-    }
+    displayMode->Release();
+
 
     return true;
   }
@@ -311,6 +331,8 @@ namespace libvideoio_bm {
 
     _initialized = true;
     initializedSync.notify();
+
+    return _initialized;
   }
 
   void DeckLinkSource::startStreams( void )
@@ -383,35 +405,35 @@ namespace libvideoio_bm {
 
     CHECK( _deckLinkOutput != nullptr );
 
-    IDeckLinkMutableVideoFrame *videoFrameBlue = CreateSDICameraControlFrame(_deckLinkOutput);
-
-    // These are magic values for 1080i50   See SDK manual page 213
-    const uint32_t kFrameDuration = 1000;
-    const uint32_t kTimeScale = 25000;
-
-    auto result = _deckLinkOutput->ScheduleVideoFrame(videoFrameBlue, 0, kFrameDuration, kTimeScale);
-    if(result != S_OK)
-    {
-      LOG(WARNING) << "Could not schedule video frame - result = " << std::hex << result;
-      return false;
-    }
-
+    // IDeckLinkMutableVideoFrame *videoFrameBlue = CreateSDICameraControlFrame(_deckLinkOutput);
     //
-    result = _deckLinkOutput->StartScheduledPlayback(0, kTimeScale, 1.0);
-    if(result != S_OK)
-    {
-      LOG(WARNING) << "Could not start video playback - result = " << std::hex << result;
-      return false;
-    }
-
-    // And stop after one frame
-    BMDTimeValue stopTime;
-    result = _deckLinkOutput->StopScheduledPlayback(kFrameDuration, &stopTime, kTimeScale);
-    if(result != S_OK)
-    {
-      LOG(WARNING) << "Could not stop video playback - result = " << std::hex << result;
-      return false;
-    }
+    // // These are magic values for 1080i50   See SDK manual page 213
+    // const uint32_t kFrameDuration = 1000;
+    // const uint32_t kTimeScale = 25000;
+    //
+    // auto result = _deckLinkOutput->ScheduleVideoFrame(videoFrameBlue, 0, kFrameDuration, kTimeScale);
+    // if(result != S_OK)
+    // {
+    //   LOG(WARNING) << "Could not schedule video frame - result = " << std::hex << result;
+    //   return false;
+    // }
+    //
+    // //
+    // result = _deckLinkOutput->StartScheduledPlayback(0, kTimeScale, 1.0);
+    // if(result != S_OK)
+    // {
+    //   LOG(WARNING) << "Could not start video playback - result = " << std::hex << result;
+    //   return false;
+    // }
+    //
+    // // And stop after one frame
+    // BMDTimeValue stopTime;
+    // result = _deckLinkOutput->StopScheduledPlayback(kFrameDuration, &stopTime, kTimeScale);
+    // if(result != S_OK)
+    // {
+    //   LOG(WARNING) << "Could not stop video playback - result = " << std::hex << result;
+    //   return false;
+    // }
 
 
     return true;

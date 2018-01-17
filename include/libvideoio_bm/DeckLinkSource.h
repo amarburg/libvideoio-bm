@@ -29,8 +29,8 @@ public:
   // Otherwise it will assume defaults.
   bool setDeckLink( int cardno = 0 );
 
-  bool createVideoInput( const std::string desiredMode = "1080p29.97", bool do3D = false );
-  bool createVideoOutput();
+  bool createVideoInput( const BMDDisplayMode desiredMode = bmdModeHD1080p2997, bool do3D = false );
+  bool createVideoOutput( const BMDDisplayMode desiredMode = bmdModeHD1080p2997, bool do3D = false );
 
 
 

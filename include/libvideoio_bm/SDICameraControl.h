@@ -5,7 +5,8 @@
 
 namespace libvideoio_bm {
 
+  IDeckLinkMutableVideoFrame* AddSDICameraControlFrame( IDeckLinkOutput *deckLinkOutput, IDeckLinkMutableVideoFrame* frame );
+  IDeckLinkMutableVideoFrame* CreateBlueFrame( IDeckLinkOutput *deckLinkOutput, bool do3D );
 
-  IDeckLinkMutableVideoFrame* CreateSDICameraControlFrame( IDeckLinkOutput *deckLinkOutput);
 
 }

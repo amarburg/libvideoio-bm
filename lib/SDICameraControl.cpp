@@ -35,6 +35,11 @@
 
 #include "g3log/g3log.hpp"
 
+#include "libvideoio_bm/Identical3DFrames.h"
+
+
+namespace libvideoio_bm {
+
 
 // Frame parameters
 // const uint32_t kFrameDuration = 1000;
@@ -178,20 +183,11 @@ static void FillBlue(IDeckLinkMutableVideoFrame* theFrame)
 	}
 }
 
-IDeckLinkMutableVideoFrame* CreateSDICameraControlFrame( IDeckLinkOutput *deckLinkOutput )
+IDeckLinkMutableVideoFrame* AddSDICameraControlFrame( IDeckLinkOutput *deckLinkOutput, IDeckLinkMutableVideoFrame* frame )
 {
 	HRESULT                         result;
-	IDeckLinkMutableVideoFrame*     frame = nullptr;
 	IDeckLinkVideoFrameAncillary*	ancillaryData = nullptr;
 
-	result = deckLinkOutput->CreateVideoFrame(kFrameWidth, kFrameHeight, kRowBytes, kPixelFormat, bmdFrameFlagDefault, &frame);
-	if (result != S_OK)
-	{
-		fprintf(stderr, "Could not create a video frame - result = %08x\n", result);
-		goto bail;
-	}
-
-	FillBlue(frame);
 	result = deckLinkOutput->CreateAncillaryData(kPixelFormat, &ancillaryData);
 	if(result != S_OK)
 	{
@@ -210,9 +206,32 @@ bail:
 	// Release the Ancillary object
 	if(ancillaryData != NULL)
 		ancillaryData->Release();
-	return frame;
+
+	 return frame;
 }
 
+
+
+IDeckLinkMutableVideoFrame* CreateBlueFrame( IDeckLinkOutput *deckLinkOutput, bool do3D )
+{
+	HRESULT                         result;
+	IDeckLinkMutableVideoFrame*     frame = nullptr;
+
+	result = deckLinkOutput->CreateVideoFrame(kFrameWidth, kFrameHeight, kRowBytes, kPixelFormat, bmdFrameFlagDefault, &frame);
+	if (result != S_OK)
+	{
+		fprintf(stderr, "Could not create a video frame - result = %08x\n", result);
+		goto bail;
+	}
+
+	FillBlue(frame);
+
+bail:
+  return frame;
+}
+
+
+}
 
 // Original sample code from BMD Example
 // int main(int argc, const char * argv[])

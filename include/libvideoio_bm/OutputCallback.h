@@ -2,15 +2,21 @@
 
 #include <DeckLinkAPI.h>
 
+#include "SDICameraControl.h"
+
 namespace libvideoio_bm {
 
 class OutputCallback: public IDeckLinkVideoOutputCallback
 {
 public:
-	OutputCallback( IDeckLinkOutput *deckLinkOutput)
+	OutputCallback( IDeckLinkOutput *deckLinkOutput, IDeckLinkDisplayMode *mode )
     : _deckLinkOutput( deckLinkOutput ),
-      _totalFramesScheduled(0)
+      _mode( mode ),
+      _totalFramesScheduled(0),
+      _blankFrame( CreateBlueFrame(deckLinkOutput, true ))
 	{
+      _deckLinkOutput->AddRef();
+      _mode->AddRef();
 	}
 
 	virtual ~OutputCallback(void)
@@ -56,7 +62,11 @@ public:
 private:
 
 IDeckLinkOutput *_deckLinkOutput;
+IDeckLinkDisplayMode *_mode;
+
   unsigned int _totalFramesScheduled;
+
+  IDeckLinkMutableVideoFrame *_blankFrame;
 
 };
 
