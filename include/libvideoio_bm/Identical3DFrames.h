@@ -43,6 +43,8 @@ namespace libvideoio_bm {
 
     ~Identical3DFrames();
 
+    int32_t _refCount;
+
     IDeckLinkMutableVideoFrame *_data;
 
   };

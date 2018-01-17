@@ -11,7 +11,7 @@ fips_begin_module( videoio_bm )
 
   fips_deps( videoio )
 
-  fips_libs( ${OpenCV_LIBS} )
+  fips_libs( ${OpenCV_LIBS} dl )
 
   fips_include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}

@@ -1,7 +1,7 @@
-#pragma once
 
+#include <cstring>
 
-#include <Identical3DFrames.h>
+#include <libvideoio_bm/Identical3DFrames.h>
 
 namespace libvideoio_bm {
 
@@ -18,8 +18,8 @@ namespace libvideoio_bm {
 
 
     //class IUnknown
-    virtual HRESULT STDMETHODCALLTYPE Identical3DFrames::QueryInterface(REFIID iid, LPVOID *ppv) {
-      if( iid ==  IID_IDeckLinkVideoFrame3DExtensions ) {
+    HRESULT STDMETHODCALLTYPE Identical3DFrames::QueryInterface(REFIID iid, LPVOID *ppv) {
+      if( memcmp((void*)&iid, (void*)&IID_IDeckLinkVideoFrame3DExtensions, 16) == 0 ) {
           *ppv = this;
           return S_OK;
       }
@@ -44,64 +44,57 @@ namespace libvideoio_bm {
     }
 
     //class IDeckLinkVideoFrame
-    virtual long GetWidth (void)
+    long Identical3DFrames::GetWidth (void)
     { return _data->GetWidth(); }
 
-    virtual long GetHeight (void)
+    long Identical3DFrames::GetHeight (void)
     { return _data->GetHeight(); }
 
-    virtual long GetRowBytes (void)
+    long Identical3DFrames::GetRowBytes (void)
     { return _data->GetRowBytes(); }
 
-    virtual BMDPixelFormat GetPixelFormat (void)
+    BMDPixelFormat Identical3DFrames::GetPixelFormat (void)
     { return _data->GetPixelFormat(); }
 
-    virtual BMDFrameFlags GetFlags (void)
+    BMDFrameFlags Identical3DFrames::GetFlags (void)
     { return _data->GetFlags(); }
 
-    virtual HRESULT GetBytes (void **buffer)
+    HRESULT Identical3DFrames::GetBytes (void **buffer)
     { return _data->GetBytes(buffer); }
 
-    virtual HRESULT GetTimecode (/* in */ BMDTimecodeFormat format, /* out */ IDeckLinkTimecode **timecode)
+    HRESULT Identical3DFrames::GetTimecode (/* in */ BMDTimecodeFormat format, /* out */ IDeckLinkTimecode **timecode)
     { return _data->GetTimecode( format, timecode); }
 
-    virtual HRESULT GetAncillaryData (/* out */ IDeckLinkVideoFrameAncillary **ancillary)
+    HRESULT Identical3DFrames::GetAncillaryData (/* out */ IDeckLinkVideoFrameAncillary **ancillary)
     { return _data->GetAncillaryData(ancillary); }
 
     //class IDeckLinkMutableVideoFrame
-    virtual HRESULT SetFlags (/* in */ BMDFrameFlags newFlags)
+    HRESULT Identical3DFrames::SetFlags (/* in */ BMDFrameFlags newFlags)
     { return _data->SetFlags( newFlags); }
 
-    virtual HRESULT SetTimecode (/* in */ BMDTimecodeFormat format, /* in */ IDeckLinkTimecode *timecode)
+    HRESULT Identical3DFrames::SetTimecode (/* in */ BMDTimecodeFormat format, /* in */ IDeckLinkTimecode *timecode)
     { return _data->SetTimecode( format, timecode ); }
 
-    virtual HRESULT SetTimecodeFromComponents (/* in */ BMDTimecodeFormat format, /* in */ uint8_t hours, /* in */ uint8_t minutes, /* in */ uint8_t seconds, /* in */ uint8_t frames, /* in */ BMDTimecodeFlags flags)
+    HRESULT Identical3DFrames::SetTimecodeFromComponents (/* in */ BMDTimecodeFormat format, /* in */ uint8_t hours, /* in */ uint8_t minutes, /* in */ uint8_t seconds, /* in */ uint8_t frames, /* in */ BMDTimecodeFlags flags)
     { return _data->SetTimecodeFromComponents( format, hours, minutes, seconds, frames, flags ); }
 
-    virtual HRESULT SetAncillaryData (/* in */ IDeckLinkVideoFrameAncillary *ancillary)
-    { return _data->SetANcillaryData( ancillary ); }
+    HRESULT Identical3DFrames::SetAncillaryData (/* in */ IDeckLinkVideoFrameAncillary *ancillary)
+    { return _data->SetAncillaryData( ancillary ); }
 
-    virtual HRESULT SetTimecodeUserBits (/* in */ BMDTimecodeFormat format, /* in */ BMDTimecodeUserBits userBits)
+    HRESULT Identical3DFrames::SetTimecodeUserBits (/* in */ BMDTimecodeFormat format, /* in */ BMDTimecodeUserBits userBits)
     { return _data->SetTimecodeUserBits( format, userBits ); }
 
     // class IDeckLinkVideoFrame3DExtensions
-    virtual BMDVideo3DPackingFormat Get3DPackingFormat (void)
+    BMDVideo3DPackingFormat Identical3DFrames::Get3DPackingFormat(void)
     {
       return bmdVideo3DPackingRightOnly;
     }
 
-    virtual HRESULT GetFrameForRightEye (/* out */ IDeckLinkVideoFrame* *rightEyeFrame)
+    HRESULT Identical3DFrames::GetFrameForRightEye(/* out */ IDeckLinkVideoFrame* *rightEyeFrame)
     {
       *rightEyeFrame = this;
       return S_OK;
     }
-
-
-  protected:
-
-    IDeckLinkMutableVideoFrame *_data;
-
-  };
 
 
 }

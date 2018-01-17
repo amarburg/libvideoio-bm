@@ -45,27 +45,28 @@ namespace libvideoio_bm {
 
     HRESULT result;
 
-    IDeckLinkIterator *deckLinkIterator = CreateDeckLinkIteratorInstance();
     IDeckLink *deckLink = nullptr;
+    IDeckLinkIterator *deckLinkIterator = CreateDeckLinkIteratorInstance();
 
     // Index cards by number for now
-    for( int i = 0; i < cardno; i++ ) {
+    for( int i = 0; i <= cardno; i++ ) {
       if( (result = deckLinkIterator->Next(&deckLink)) != S_OK) {
         LOG(WARNING) << "Couldn't get information on DeckLink card " << i;
         return false;
       }
     }
 
+    _deckLink = deckLink;
+    CHECK( _deckLink != nullptr );
+
     free( deckLinkIterator );
 
-    _deckLink = deckLink;
-
     char *modelName, *displayName;
-    if( deckLink->GetModelName( (const char **)&modelName ) != S_OK ) {
+    if( _deckLink->GetModelName( (const char **)&modelName ) != S_OK ) {
       LOG(WARNING) << "Unable to query model name.";
     }
 
-    if( deckLink->GetDisplayName( (const char **)&displayName ) != S_OK ) {
+    if( _deckLink->GetDisplayName( (const char **)&displayName ) != S_OK ) {
       LOG(WARNING) << "Unable to query display name.";
     }
 
@@ -198,14 +199,12 @@ namespace libvideoio_bm {
     // free( displayModeName );
   }
 
-  free( displayMode );
   free( displayModeIterator );
-
 
   if( ! _deckLinkInput ) {
     // Failed to find a good mode
     LOG(FATAL) << "Unable to find a video input mode with the desired properties";
-    return false;
+    goto bail;
   }
 
   // Made it this far?  Great!
@@ -215,10 +214,15 @@ namespace libvideoio_bm {
   if (result != S_OK)
   {
     LOG(WARNING) << "Failed to enable video input. Is another application using the card?";
-    return false;
+    goto bail;
   }
 
-    return true;
+  return true;
+
+bail:
+  free( displayMode );
+
+    return false;
   }
 
 
@@ -303,8 +307,6 @@ LOG(WARNING) << "Display mode not supported";
   bool DeckLinkSource::initialize()
   {
     _initialized = false;
-
-    HRESULT result;
 
     if( !_deckLink && !setDeckLink() ) {
         LOG(FATAL) << "Error creating Decklink card";
