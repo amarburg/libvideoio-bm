@@ -1,6 +1,6 @@
 #  Copyright Olivier Parcollet 2010, Andrey Antipov 2013.
 #
-# This module looks for tclap command option parser.
+# This module looks for Blackmagic Decklink SDK
 # It sets up : BLACKMAGIC_SRCS
 #              BLACKMAGIC_INCLUDE_DIR
 #

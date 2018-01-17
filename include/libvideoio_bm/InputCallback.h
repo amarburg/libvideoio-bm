@@ -3,6 +3,8 @@
 #include <queue>
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
 #include "active_object/shared_queue.h"
 #include <DeckLinkAPI.h>
@@ -11,10 +13,12 @@
 
 namespace libvideoio_bm {
 
-  class DeckLinkCaptureDelegate : public IDeckLinkInputCallback
+  class InputCallback : public IDeckLinkInputCallback
   {
   public:
-    DeckLinkCaptureDelegate(  IDeckLinkInput* input, IDeckLinkOutput *output, unsigned int maxFrames = -1 );
+    InputCallback(  IDeckLinkInput *input,
+            IDeckLinkOutput *output,
+            unsigned int maxFrames = -1 );
 
     virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, LPVOID *ppv) { return E_NOINTERFACE; }
     virtual ULONG STDMETHODCALLTYPE AddRef(void);
@@ -35,8 +39,8 @@ namespace libvideoio_bm {
 
     unsigned long _frameCount, _maxFrames;
 
-    IDeckLinkInput* _deckLinkInput;
-    IDeckLinkOutput* _deckLinkOutput;
+    IDeckLinkInput *_deckLinkInput;
+    IDeckLinkOutput *_deckLinkOutput;
 
     //IDeckLinkVideoConversion *_deckLinkConversion;
 

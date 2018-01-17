@@ -1,0 +1,16 @@
+imports:
+    fips-googletest:
+        git: https://github.com/amarburg/fips-googletest.git
+    videoio:
+        git: https://github.com/amarburg/libvideoio.git
+        branch: fips
+
+exports:
+  header-dirs:
+    - include/
+  modules:
+    videoio_bm: .
+
+defines:
+  FIPS_EXCEPTIONS: ON
+  FIPS_RTTI: ON

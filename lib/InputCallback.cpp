@@ -3,85 +3,30 @@
 
 #include <g3log/g3log.hpp>
 
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
 
-#include "libvideoio_bm/Delegate.h"
+#include "libvideoio_bm/InputCallback.h"
 
 namespace libvideoio_bm {
 
   const int maxDequeDepth = 10;
 
-  // Based on CvMatDeckLinkVideoFrame from
-  // https://github.com/ull-isaatc/blackmagic-test
 
-  class CvMatDeckLinkVideoFrame : public IDeckLinkVideoFrame {
-  public:
-       cv::Mat mat;
-
-       CvMatDeckLinkVideoFrame(int row, int cols)
-           : mat(row, cols, CV_8UC4)
-       {}
-
-       //
-       // IDeckLinkVideoFrame
-       //
-
-       long GetWidth()
-       { return mat.rows; }
-       long GetHeight()
-       { return mat.cols; }
-       long GetRowBytes()
-       { return mat.step; }
-       BMDPixelFormat GetPixelFormat()
-       {
-         return bmdFormat10BitYUV;  //bmdFormat8BitBGRA;
-       }
-
-       BMDFrameFlags GetFlags()
-       {
-         return 0;
-       }
-
-       HRESULT GetBytes(void **buffer)
-       {
-           *buffer = mat.data;
-           return S_OK;
-       }
-
-       HRESULT GetTimecode(BMDTimecodeFormat format,
-           IDeckLinkTimecode **timecode)
-       { *timecode = nullptr; return S_OK; }
-
-       HRESULT GetAncillaryData(IDeckLinkVideoFrameAncillary **ancillary)
-       { *ancillary = nullptr; return S_OK; }
-
-       HRESULT QueryInterface(REFIID iid, LPVOID *ppv)
-   { return E_NOINTERFACE; }
-
-   ULONG AddRef()
-   { mat.addref(); return *mat.refcount; }
-   ULONG Release()
-   {
-       mat.release();
-       if (*mat.refcount == 0) delete this;
-       return *mat.refcount;
-   }
-
-  };
-
-  DeckLinkCaptureDelegate::DeckLinkCaptureDelegate( IDeckLinkInput* input, IDeckLinkOutput *output, unsigned int maxFrames )
-  : _refCount(1), _maxFrames( maxFrames ), _frameCount(0), _deckLinkInput(input), _deckLinkOutput(output)
+  InputCallback::InputCallback( IDeckLinkInput *input,
+                                IDeckLinkOutput *output,
+                                unsigned int maxFrames )
+  : _maxFrames( maxFrames ),
+    _frameCount(0),
+    _deckLinkInput(input),
+    _deckLinkOutput(output)
   {
   }
 
-  ULONG DeckLinkCaptureDelegate::AddRef(void)
+  ULONG InputCallback::AddRef(void)
   {
     return __sync_add_and_fetch(&_refCount, 1);
   }
 
-  ULONG DeckLinkCaptureDelegate::Release(void)
+  ULONG InputCallback::Release(void)
   {
     int32_t newRefValue = __sync_sub_and_fetch(&_refCount, 1);
     if (newRefValue == 0)
@@ -92,7 +37,7 @@ namespace libvideoio_bm {
     return newRefValue;
   }
 
-  HRESULT DeckLinkCaptureDelegate::VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame,
+  HRESULT InputCallback::VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame,
     IDeckLinkAudioInputPacket* audioFrame)
     {
       // IDeckLinkVideoFrame *rightEyeFrame = nullptr;
@@ -289,7 +234,7 @@ namespace libvideoio_bm {
       return S_OK;
     }
 
-    HRESULT DeckLinkCaptureDelegate::VideoInputFormatChanged(BMDVideoInputFormatChangedEvents events, IDeckLinkDisplayMode *mode, BMDDetectedVideoInputFormatFlags formatFlags)
+    HRESULT InputCallback::VideoInputFormatChanged(BMDVideoInputFormatChangedEvents events, IDeckLinkDisplayMode *mode, BMDDetectedVideoInputFormatFlags formatFlags)
     {
       LOG(INFO) << "Received Video Input Format Changed";
 
@@ -327,7 +272,7 @@ namespace libvideoio_bm {
       return S_OK;
     }
 
-    // cv::Mat DeckLinkCaptureDelegate::popImage() {
+    // cv::Mat InputCallback::popImage() {
     //   ThreadSynchronizer::LockGuard lock(_imageReady.mutex());
     //
     //   if( _imageQueue.size() == 0 ) return cv::Mat();
