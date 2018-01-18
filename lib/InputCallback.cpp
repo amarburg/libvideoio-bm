@@ -8,16 +8,18 @@
 
 namespace libvideoio_bm {
 
+  using libvideoio::ImageSize;
+
   const int maxDequeDepth = 10;
 
 
   InputCallback::InputCallback( IDeckLinkInput *input,
                                 IDeckLinkOutput *output,
-                                unsigned int maxFrames )
-  : _maxFrames( maxFrames ),
-    _frameCount(0),
+                                IDeckLinkDisplayMode *mode )
+  : _frameCount(0),
     _deckLinkInput(input),
-    _deckLinkOutput(output)
+    _deckLinkOutput(output),
+    _mode(mode)
   {
   }
 
@@ -115,21 +117,22 @@ namespace libvideoio_bm {
           }
           default:
           {
-            IDeckLinkMutableVideoFrame*     dstFrame = NULL;
+              LOG(INFO) << "Converting through Blackmagic VideoConversionInstance";
+              IDeckLinkMutableVideoFrame*     dstFrame = NULL;
 
               //CvMatDeckLinkVideoFrame cvMatWrapper(videoFrame->GetHeight(), videoFrame->GetWidth());
               HRESULT result = _deckLinkOutput->CreateVideoFrame( videoFrame->GetWidth(), videoFrame->GetHeight(),
                                           videoFrame->GetWidth() * 4, bmdFormat8BitBGRA, bmdFrameFlagDefault, &dstFrame);
                 if (result != S_OK)
                 {
-                        LOG(WARNING) << "Failed to create reference video frame";
+                        LOG(WARNING) << "Failed to create destination video frame";
                         return false;
                 }
 
 
               IDeckLinkVideoConversion *converter =  CreateVideoConversionInstance();
 
-              LOG(WARNING) << "Converting " << std::hex << videoFrame->GetPixelFormat() << " to " << dstFrame->GetPixelFormat();
+              //LOG(WARNING) << "Converting " << std::hex << videoFrame->GetPixelFormat() << " to " << dstFrame->GetPixelFormat();
               result =  converter->ConvertFrame(videoFrame, dstFrame);
 
               if (result != S_OK ) {
@@ -145,6 +148,8 @@ namespace libvideoio_bm {
               cv::Mat srcMat( cv::Size(dstFrame->GetWidth(), dstFrame->GetHeight()), CV_8UC4, buffer, dstFrame->GetRowBytes() );
 
               cv::cvtColor(srcMat, out, cv::COLOR_BGRA2BGR);
+
+              dstFrame->Release();
             //  return true;
           }
         }
@@ -199,7 +204,7 @@ namespace libvideoio_bm {
           if( _queue.size() < maxDequeDepth ) {
             _queue.push( out );
           } else {
-            LOG(WARNING) << "Image queue full";
+            LOG(WARNING) << "Image queue full, unable to queue more images";
           }
 
           //   write(g_videoOutputFile, frameBytes, videoFrame->GetRowBytes() * videoFrame->GetHeight());
@@ -247,8 +252,7 @@ namespace libvideoio_bm {
       char*   displayModeName = nullptr;
       BMDPixelFormat  pixelFormat = bmdFormat10BitYUV;
 
-      if (formatFlags & bmdDetectedVideoInputRGB444)
-      pixelFormat = bmdFormat10BitRGB;
+      if (formatFlags & bmdDetectedVideoInputRGB444) pixelFormat = bmdFormat10BitRGB;
 
       mode->GetName((const char**)&displayModeName);
       LOGF(INFO,"Video format changed to %s %s", displayModeName, formatFlags & bmdDetectedVideoInputRGB444 ? "RGB" : "YUV");
@@ -271,18 +275,15 @@ namespace libvideoio_bm {
         _deckLinkInput->StartStreams();
       }
 
+      _mode = mode;
+
       return S_OK;
     }
 
-    // cv::Mat InputCallback::popImage() {
-    //   ThreadSynchronizer::LockGuard lock(_imageReady.mutex());
-    //
-    //   if( _imageQueue.size() == 0 ) return cv::Mat();
-    //
-    //   cv::Mat out( _imageQueue.front() );
-    //
-    //   _imageQueue.pop();
-    //   return out;
-    // }
+  ImageSize InputCallback::imageSize(void) const {
+      if( !_mode ) return ImageSize(0,0);
 
+      return ImageSize( _mode->GetWidth(), _mode->GetHeight() );
   }
+
+}

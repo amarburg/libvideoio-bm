@@ -112,16 +112,7 @@ int main( int argc, char** argv )
 		exit(-1);
 	}
 
-	//
-	// //if( calibOutputArg.isSet() ) {
-	// //		LOG(INFO) << "Saving calibration to \"" << calibOutputArg.getValue() << "\"";
-	// //		calibrationFromZed( camera, calibOutputArg.getValue() );
-	// //}
-	//
-	// int numFrames = 0; //dataSource->numFrames();
-	//
-	// // Wait for the auto exposure and white balance
-	// std::this_thread::sleep_for(std::chrono::seconds(1));
+
 
 	const int duration = durationArg.getValue();
 
@@ -137,7 +128,7 @@ int main( int argc, char** argv )
 	int count = 0, miss = 0, displayed = 0;
 	bool logOnce = true;
 
-	//decklink.start();
+	decklink.startStreams();
 
 	while( keepGoing ) {
 

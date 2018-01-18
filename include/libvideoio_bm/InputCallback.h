@@ -1,6 +1,6 @@
 #pragma once
 
-#include <queue>
+//#include <queue>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -9,6 +9,7 @@
 #include "active_object/shared_queue.h"
 #include <DeckLinkAPI.h>
 #include "ThreadSynchronizer.h"
+#include "libvideoio/ImageSize.h"
 
 
 namespace libvideoio_bm {
@@ -17,8 +18,8 @@ namespace libvideoio_bm {
   {
   public:
     InputCallback(  IDeckLinkInput *input,
-            IDeckLinkOutput *output,
-            unsigned int maxFrames = -1 );
+                    IDeckLinkOutput *output,
+                    IDeckLinkDisplayMode *mode );
 
     virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, LPVOID *ppv) { return E_NOINTERFACE; }
     virtual ULONG STDMETHODCALLTYPE AddRef(void);
@@ -31,16 +32,19 @@ namespace libvideoio_bm {
     // ThreadSynchronizer &imageReady() { return _imageReady; }
     // cv::Mat popImage();
 
+    libvideoio::ImageSize imageSize() const;
+
   private:
 
     bool _stop;
 
     int32_t _refCount;
 
-    unsigned long _frameCount, _maxFrames;
+    unsigned long _frameCount;
 
     IDeckLinkInput *_deckLinkInput;
     IDeckLinkOutput *_deckLinkOutput;
+    IDeckLinkDisplayMode *_mode;
 
     //IDeckLinkVideoConversion *_deckLinkConversion;
 

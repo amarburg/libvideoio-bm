@@ -207,6 +207,11 @@ namespace libvideoio_bm {
     goto bail;
   }
 
+  // Configure the capture callback ... needs an output to create frames for conversion
+  CHECK( _deckLinkOutput != nullptr );
+  _inputCallback = new InputCallback( _deckLinkInput, _deckLinkOutput,  displayMode );
+  _deckLinkInput->SetCallback(_inputCallback);
+
   // Made it this far?  Great!
   result = _deckLinkInput->EnableVideoInput(displayMode->GetDisplayMode(),
                                             pixelFormat,
@@ -298,7 +303,7 @@ LOG(WARNING) << "Display mode not supported";
     initialize();
 
     if( _initialized ) {
-      startStreams();
+      // startStreams();
       doneSync.wait();
       stopStreams();
     }
@@ -314,22 +319,17 @@ LOG(WARNING) << "Display mode not supported";
     }
     CHECK( (bool)_deckLink ) << "_deckLink not set";
 
-
-    if( !_deckLinkInput && !createVideoInput() ) {
-        LOG(FATAL) << "Error creating video input";
-        return false;
-    }
-    CHECK( (bool)_deckLinkInput ) << "_deckLinkInput not set";
-
     if( !_deckLinkOutput && !createVideoOutput() ) {
         LOG(FATAL) << "Error creating video output";
         return false;
     }
     CHECK( (bool)_deckLinkOutput ) << "_deckLinkOutput not set";
 
-    // Configure the capture callback ... needs an output to create frames for conversion
-    _inputCallback = new InputCallback( _deckLinkInput, _deckLinkOutput );
-    _deckLinkInput->SetCallback(_inputCallback);
+    if( !_deckLinkInput && !createVideoInput() ) {
+        LOG(FATAL) << "Error creating video input";
+        return false;
+    }
+    CHECK( (bool)_deckLinkInput ) << "_deckLinkInput not set";
 
     _initialized = true;
     initializedSync.notify();
@@ -368,30 +368,16 @@ LOG(WARNING) << "Display mode not supported";
   bool DeckLinkSource::grab( void )
   {
     if( _inputCallback ) {
+
+      while( _inputCallback->queue().try_and_pop(_grabbedImage) ) {;}
+
+      if( !_grabbedImage.empty() ) return true;
+
+      // If there was nothing in the queue, wait
       if( _inputCallback->queue().wait_for_pop(_grabbedImage, std::chrono::milliseconds(100) ) == false ) {
-        LOG(WARNING) << "Timeout waiting for image";
+        LOG(WARNING) << "Timeout waiting for image in image queue";
         return false;
       }
-      LOG(INFO) << "Grabbing image";
-
-      // _grabbedImage = _inputCallback->popImage();
-
-      // Ifdesired,enumeratethesupportedcapturevideomodesbycalling IDeckLinkInput::GetDisplayModeIterator. For each reported capture mode, call IDeckLinkInput::DoesSupportVideoMode to check if the combination of the video mode and pixel format is supported.
-      //  IDeckLinkInput::EnableVideoInput
-      //  IDeckLinkInput::EnableAudioInput
-      //  IDeckLinkInput::SetCallback
-      //  IDeckLinkInput::StartStreams
-      //  Whilestreamsarerunning:
-      // - receive calls to IDeckLinkInputCallback::VideoInputFrameArrived
-      // with video frame and corresponding audio packet
-      // IDeckLinkInput::StopStreams
-
-      //     if( _cam->grab( sl::zed::STANDARD, false, false, false ) ) {
-      // //    if( _cam->grab( _mode, _computeDepth, _computeDepth, false ) ) {
-      //       LOG( WARNING ) << "Error from Zed::grab";
-      //       return false;
-      //     }
-      //
 
       return true;
     }
@@ -447,18 +433,20 @@ LOG(WARNING) << "Display mode not supported";
   int DeckLinkSource::getImage( int i, cv::Mat &mat )
   {
     switch(i) {
-      case 0:
-      mat = _grabbedImage;
-      return 1;
-      break;
-      default:
-      return 0;
+    case 0:
+        mat = _grabbedImage;
+        return 1;
+        break;
+    default:
+        return 0;
     }
+
+    return 0;
   }
 
   ImageSize DeckLinkSource::imageSize( void ) const
   {
-
+    return _inputCallback->imageSize();
   }
 
 }
