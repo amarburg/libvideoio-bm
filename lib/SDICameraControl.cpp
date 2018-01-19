@@ -242,7 +242,7 @@ bail:
 // 	IDeckLinkIterator*      deckLinkIterator = NULL;
 // 	IDeckLink*              deckLink         = NULL;
 // 	IDeckLinkOutput*        deckLinkOutput   = NULL;
-// 	OutputCallback*         outputCallback   = NULL;
+// 	OutputHandler*         OutputHandler   = NULL;
 // 	IDeckLinkVideoFrame*    videoFrameBlue   = NULL;
 // 	HRESULT                 result;
 //
@@ -273,15 +273,15 @@ bail:
 // 	}
 //
 // 	// Create an instance of output callback
-// 	outputCallback = new OutputCallback(deckLinkOutput);
-// 	if(outputCallback == NULL)
+// 	OutputHandler = new OutputHandler(deckLinkOutput);
+// 	if(OutputHandler == NULL)
 // 	{
 // 		fprintf(stderr, "Could not create output callback object\n");
 // 		goto bail;
 // 	}
 //
 // 	// Set the callback object to the DeckLink device's output interface
-// 	result = deckLinkOutput->SetScheduledFrameCompletionCallback(outputCallback);
+// 	result = deckLinkOutput->SetScheduledFrameCompletionCallback(OutputHandler);
 // 	if(result != S_OK)
 // 	{
 // 		fprintf(stderr, "Could not set callback - result = %08x\n", result);
@@ -351,9 +351,9 @@ bail:
 // 	if(videoFrameBlue != NULL)
 // 		videoFrameBlue->Release();
 //
-// 	// Release the outputCallback callback object
-// 	if(outputCallback)
-// 		delete outputCallback;
+// 	// Release the OutputHandler callback object
+// 	if(OutputHandler)
+// 		delete OutputHandler;
 //
 // 	return(result == S_OK) ? 0 : 1;
 // }

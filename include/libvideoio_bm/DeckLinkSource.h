@@ -9,8 +9,8 @@
 
 #include "libbmsdi/bmsdi.h"
 
-#include "InputCallback.h"
-#include "OutputCallback.h"
+#include "InputHandler.h"
+#include "OutputHandler.h"
 #include "SDICameraControl.h"
 
 
@@ -48,7 +48,7 @@ public:
   // DeckLinkSource( const DeckLinkSource & ) = delete;
   // DeckLinkSource &operator=( const DeckLinkSource & ) = delete;
 
-  // Pull images from _inputCallback
+  // Pull images from _InputHandler
   virtual bool grab( void );
 
   virtual int getImage( int i, cv::Mat &mat );
@@ -70,8 +70,8 @@ protected:
   BMDTimeScale _outputTimeScale;
   BMDTimeValue _outputTimeValue;
 
-  InputCallback *_inputCallback;
-  OutputCallback *_outputCallback;
+  InputHandler *_InputHandler;
+  OutputHandler *_OutputHandler;
 
 };
 

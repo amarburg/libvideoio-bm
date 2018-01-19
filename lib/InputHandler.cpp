@@ -5,7 +5,7 @@
 #include <g3log/g3log.hpp>
 
 
-#include "libvideoio_bm/InputCallback.h"
+#include "libvideoio_bm/InputHandler.h"
 
 namespace libvideoio_bm {
 
@@ -15,7 +15,7 @@ namespace libvideoio_bm {
 
 
 
-  InputCallback::InputCallback( IDeckLinkInput *input,
+  InputHandler::InputHandler( IDeckLinkInput *input,
                                 IDeckLinkOutput *output,
                                 IDeckLinkDisplayMode *mode )
   : _frameCount(0),
@@ -26,12 +26,12 @@ namespace libvideoio_bm {
     _deckLinkInput->SetCallback(this);
   }
 
-  ULONG InputCallback::AddRef(void)
+  ULONG InputHandler::AddRef(void)
   {
     return __sync_add_and_fetch(&_refCount, 1);
   }
 
-  ULONG InputCallback::Release(void)
+  ULONG InputHandler::Release(void)
   {
     int32_t newRefValue = __sync_sub_and_fetch(&_refCount, 1);
     if (newRefValue == 0)
@@ -44,7 +44,7 @@ namespace libvideoio_bm {
 
 
   // Callbacks are called in a private thread....
-  HRESULT InputCallback::VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame,
+  HRESULT InputHandler::VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame,
                                               IDeckLinkAudioInputPacket* audioFrame)
     {
        IDeckLinkVideoFrame *rightEyeFrame = nullptr;
@@ -123,7 +123,7 @@ namespace libvideoio_bm {
       return S_OK;
     }
 
-    HRESULT InputCallback::VideoInputFormatChanged(BMDVideoInputFormatChangedEvents events, IDeckLinkDisplayMode *mode, BMDDetectedVideoInputFormatFlags formatFlags)
+    HRESULT InputHandler::VideoInputFormatChanged(BMDVideoInputFormatChangedEvents events, IDeckLinkDisplayMode *mode, BMDDetectedVideoInputFormatFlags formatFlags)
     {
       LOG(INFO) << "(" << std::this_thread::get_id() << ") Received Video Input Format Changed";
 
@@ -162,13 +162,13 @@ namespace libvideoio_bm {
       return S_OK;
     }
 
-  ImageSize InputCallback::imageSize(void) const {
+  ImageSize InputHandler::imageSize(void) const {
       if( !_mode ) return ImageSize(0,0);
       return ImageSize( _mode->GetWidth(), _mode->GetHeight() );
   }
 
 
-  void InputCallback::stopStreams() {
+  void InputHandler::stopStreams() {
 
     LOG(INFO) << "(" << std::this_thread::get_id() << ") Stopping DeckLinkInput streams";
     if (_deckLinkInput->StopStreams() != S_OK) {
@@ -179,7 +179,7 @@ namespace libvideoio_bm {
     //_thread.doDone();
   }
 
-  bool InputCallback::process(  IDeckLinkVideoFrame *videoFrame )
+  bool InputHandler::process(  IDeckLinkVideoFrame *videoFrame )
   {
     LOG(INFO) << "Start process in thread " << std::this_thread::get_id();
 

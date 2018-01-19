@@ -15,28 +15,10 @@
 
 namespace libvideoio_bm {
 
-  class InputCallback;
-
-  class InputHandler {
-     public:
-      InputHandler( InputCallback &parent )
-        : _parent(parent)
-      { ;  }
-
-      ~InputHandler()
-      {;}
-
-      protected:
-
-        InputCallback &_parent;
-
-  };
-
-
-  class InputCallback : public IDeckLinkInputCallback
+  class InputHandler : public IDeckLinkInputCallback
   {
   public:
-    InputCallback(  IDeckLinkInput *input,
+    InputHandler(  IDeckLinkInput *input,
                     IDeckLinkOutput *output,
                     IDeckLinkDisplayMode *mode );
 

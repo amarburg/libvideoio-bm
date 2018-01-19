@@ -1,15 +1,15 @@
-#pragma once
 
 #include <DeckLinkAPI.h>
 
-#include "SDICameraControl.h"
+#include <g3log/g3log.hpp>
+
+#include "libvideoio_bm/SDICameraControl.h"
+#include "libvideoio_bm/OutputHandler.h"
 
 namespace libvideoio_bm {
 
-	class OutputCallback: public IDeckLinkVideoOutputCallback
-	{
-	public:
-		OutputCallback( IDeckLinkOutput *deckLinkOutput, IDeckLinkDisplayMode *mode )
+
+		OutputHandler::OutputHandler( IDeckLinkOutput *deckLinkOutput, IDeckLinkDisplayMode *mode )
 		: _deckLinkOutput( deckLinkOutput ),
 		_mode( mode ),
 		_bmsdiBuffer( bmAllocBuffer() ),
@@ -31,20 +31,20 @@ namespace libvideoio_bm {
 
 		}
 
-		virtual ~OutputCallback(void)
+		 OutputHandler::~OutputHandler(void)
 		{
 			if( _deckLinkOutput ) _deckLinkOutput->Release();
 		}
 
 
-		void scheduleFrame( IDeckLinkVideoFrame *frame, uint8_t count = 1 )
+		void OutputHandler::scheduleFrame( IDeckLinkVideoFrame *frame, uint8_t count )
 		{
 			//LOG(INFO) << "Scheduled frame " << _totalFramesScheduled;
 			_deckLinkOutput->ScheduleVideoFrame(_blankFrame, _totalFramesScheduled*_timeValue, _timeValue*count, _timeScale );
 			_totalFramesScheduled += count;
 		}
 
-		HRESULT	STDMETHODCALLTYPE ScheduledFrameCompleted(IDeckLinkVideoFrame* completedFrame, BMDOutputFrameCompletionResult result)
+		HRESULT	STDMETHODCALLTYPE OutputHandler::ScheduledFrameCompleted(IDeckLinkVideoFrame* completedFrame, BMDOutputFrameCompletionResult result)
 		{
 			// For simplicity, this will do just one buffer per frame for now
 			BMSDIBuffer *newCmd = nullptr;
@@ -84,48 +84,6 @@ namespace libvideoio_bm {
 			return S_OK;
 		}
 
-		HRESULT	STDMETHODCALLTYPE ScheduledPlaybackHasStopped(void)
-		{
-			return S_OK;
-		}
 
-		// IUnknown needs only a dummy implementation
-		HRESULT	STDMETHODCALLTYPE QueryInterface (REFIID iid, LPVOID *ppv)
-		{
-			return E_NOINTERFACE;
-		}
-
-		ULONG STDMETHODCALLTYPE AddRef()
-		{
-			return 1;
-		}
-
-		ULONG STDMETHODCALLTYPE Release()
-		{
-			return 1;
-		}
-
-		active_object::shared_queue< BMSDIBuffer * > &queue() { return _queue; }
-
-
-	private:
-
-		active_object::shared_queue< BMSDIBuffer * > _queue;
-
-
-		IDeckLinkOutput *_deckLinkOutput;
-		IDeckLinkDisplayMode *_mode;
-
-		// Cached values
-		BMDTimeValue _timeValue;
-		BMDTimeScale _timeScale;
-
-		BMSDIBuffer *_bmsdiBuffer;
-
-		unsigned int _totalFramesScheduled;
-
-		IDeckLinkMutableVideoFrame *_blankFrame;
-
-	};
 
 }

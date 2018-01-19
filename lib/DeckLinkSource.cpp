@@ -14,8 +14,8 @@ namespace libvideoio_bm {
   _deckLink( nullptr ),
   _deckLinkInput( nullptr ),
   _deckLinkOutput( nullptr ),
-  _inputCallback( nullptr ),
-  _outputCallback(nullptr)
+  _InputHandler( nullptr ),
+  _OutputHandler(nullptr)
   {
     //initialize();
   }
@@ -213,7 +213,7 @@ namespace libvideoio_bm {
 
     // Configure the capture callback ... needs an output to create frames for conversion
     CHECK( _deckLinkOutput != nullptr );
-    _inputCallback = new InputCallback( _deckLinkInput, _deckLinkOutput,  displayMode );
+    _InputHandler = new InputHandler( _deckLinkInput, _deckLinkOutput,  displayMode );
 
     // Made it this far?  Great!
     result = _deckLinkInput->EnableVideoInput(displayMode->GetDisplayMode(),
@@ -289,8 +289,8 @@ namespace libvideoio_bm {
     }
 
     // Set the callback object to the DeckLink device's output interface
-    _outputCallback = new OutputCallback( _deckLinkOutput, displayMode );
-    result = _deckLinkOutput->SetScheduledFrameCompletionCallback( _outputCallback );
+    _OutputHandler = new OutputHandler( _deckLinkOutput, displayMode );
+    result = _deckLinkOutput->SetScheduledFrameCompletionCallback( _OutputHandler );
     if(result != S_OK)
     {
       LOGF(WARNING, "Could not set callback - result = %08x\n", result);
@@ -372,9 +372,9 @@ namespace libvideoio_bm {
   void DeckLinkSource::stopStreams( void )
   {
 
-    CHECK( _inputCallback != nullptr );
+    CHECK( _InputHandler != nullptr );
 
-    _inputCallback->stopStreams();
+    _InputHandler->stopStreams();
 
     // LOG(INFO) << "Pausing DeckLinkInput streams";
     // if ( _deckLinkInput->PauseStreams() != S_OK) {
@@ -406,14 +406,14 @@ namespace libvideoio_bm {
 
   bool DeckLinkSource::grab( void )
   {
-    if( _inputCallback ) {
+    if( _InputHandler ) {
 
-      while( _inputCallback->queue().try_and_pop(_grabbedImage) ) {;}
+      while( _InputHandler->queue().try_and_pop(_grabbedImage) ) {;}
 
       if( !_grabbedImage.empty() ) return true;
 
       // If there was nothing in the queue, wait
-      if( _inputCallback->queue().wait_for_pop(_grabbedImage, std::chrono::milliseconds(100) ) == false ) {
+      if( _InputHandler->queue().wait_for_pop(_grabbedImage, std::chrono::milliseconds(100) ) == false ) {
         LOG(WARNING) << "Timeout waiting for image in image queue";
         return false;
       }
@@ -428,12 +428,12 @@ namespace libvideoio_bm {
   {
     if( !_deckLinkOutput ) return false;
 
-    CHECK( _outputCallback != nullptr );
+    CHECK( _OutputHandler != nullptr );
 
     LOG(INFO) << "Trying to send buffer of length " << (int)buffer->len;
 
     // Should check to see if the buffer is full...
-    _outputCallback->queue().push(buffer);
+    _OutputHandler->queue().push(buffer);
 
     // IDeckLinkMutableVideoFrame *videoFrameBlue = CreateSDICameraControlFrame(_deckLinkOutput);
     //
@@ -488,7 +488,7 @@ namespace libvideoio_bm {
 
   ImageSize DeckLinkSource::imageSize( void ) const
   {
-    return _inputCallback->imageSize();
+    return _InputHandler->imageSize();
   }
 
 }

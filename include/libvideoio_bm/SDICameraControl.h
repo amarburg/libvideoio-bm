@@ -1,7 +1,8 @@
 #pragma once
 
-
 #include <DeckLinkAPI.h>
+
+#include "libbmsdi/bmsdi.h"
 
 namespace libvideoio_bm {
 
