@@ -226,7 +226,7 @@ int main( int argc, char** argv )
 
 	 std::chrono::duration<float> dur( std::chrono::steady_clock::now()  - start );
 
-	LOG(INFO) << "Cleaning up...";
+	LOG(INFO) << "End of main loop, stopping streams...";
 	decklink.stopStreams();
 
 	// 	if( camera && svoOutputArg.isSet() ) camera->stopRecording();

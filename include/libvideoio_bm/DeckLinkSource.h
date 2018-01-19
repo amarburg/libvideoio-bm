@@ -36,7 +36,6 @@ public:
 
   bool queueSDIBuffer( BMSDIBuffer *buffer );
 
-
   // Thread entry point
   void operator()();
 

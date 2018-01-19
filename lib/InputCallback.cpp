@@ -117,7 +117,7 @@ namespace libvideoio_bm {
           }
           default:
           {
-              LOG(INFO) << "Converting through Blackmagic VideoConversionInstance";
+              //LOG(INFO) << "Converting through Blackmagic VideoConversionInstance";
               IDeckLinkMutableVideoFrame*     dstFrame = NULL;
 
               //CvMatDeckLinkVideoFrame cvMatWrapper(videoFrame->GetHeight(), videoFrame->GetWidth());
@@ -146,8 +146,8 @@ namespace libvideoio_bm {
                 return false;
               }
               cv::Mat srcMat( cv::Size(dstFrame->GetWidth(), dstFrame->GetHeight()), CV_8UC4, buffer, dstFrame->GetRowBytes() );
-
-              cv::cvtColor(srcMat, out, cv::COLOR_BGRA2BGR);
+              //cv::cvtColor(srcMat, out, cv::COLOR_BGRA2BGR);
+              cv::resize( srcMat, out, cv::Size(), 0.25, 0.25  );
 
               dstFrame->Release();
             //  return true;
