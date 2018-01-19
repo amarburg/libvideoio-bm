@@ -131,10 +131,10 @@ int main( int argc, char** argv )
 
 	// Need to wait for initialization
 //	if( decklink.initializedSync.wait_for( std::chrono::seconds(1) ) == false || !decklink.initialized() ) {
-	if( !decklink.initialize() ) {
-		LOG(WARNING) << "Unable to initialize DeckLinkSource";
-		exit(-1);
-	}
+	// if( !decklink.initialize() ) {
+	// 	LOG(WARNING) << "Unable to initialize DeckLinkSource";
+	// 	exit(-1);
+	// }
 
 	const int duration = durationArg.getValue();
 
@@ -150,7 +150,10 @@ int main( int argc, char** argv )
 	int count = 0, miss = 0, displayed = 0;
 	bool logOnce = true;
 
-	decklink.startStreams();
+	if( !decklink.startStreams() ) {
+			LOG(WARNING) << "Unable to startStreams";
+			exit(-1);
+	}
 
 	while( keepGoing ) {
 

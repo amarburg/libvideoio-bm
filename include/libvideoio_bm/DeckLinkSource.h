@@ -26,42 +26,34 @@ public:
 	DeckLinkSource();
   ~DeckLinkSource();
 
-
-  // These can be called expicitly before operator(),
+  // These can be called expicitly before initialize(),
   // Otherwise it will assume defaults.
   bool setDeckLink( int cardno = 0 );
-
   bool createVideoInput( const BMDDisplayMode desiredMode = bmdModeHD1080p2997, bool do3D = false );
   bool createVideoOutput( const BMDDisplayMode desiredMode = bmdModeHD1080p2997, bool do3D = false );
-
-  bool queueSDIBuffer( BMSDIBuffer *buffer );
-
-  // Thread entry point
-  void operator()();
 
   bool initialize();
   bool initialized() const { return _initialized; }
 
-  virtual int numFrames( void ) const { return -1; }
+  // These start and stop the input streams
+  bool startStreams();
+  void stopStreams();
 
-  bool sendSDICameraControl();
+
+  bool queueSDIBuffer( BMSDIBuffer *buffer );
+
+  virtual int numFrames( void ) const { return -1; }
 
   // // Delete copy operators
   // DeckLinkSource( const DeckLinkSource & ) = delete;
   // DeckLinkSource &operator=( const DeckLinkSource & ) = delete;
 
+  // Pull images from _inputCallback
   virtual bool grab( void );
 
   virtual int getImage( int i, cv::Mat &mat );
 
   virtual ImageSize imageSize( void ) const;
-
-  // These start and stop the input streams
-  void startStreams();
-  void stopStreams();
-
-  ThreadSynchronizer doneSync;
-  ThreadSynchronizer initializedSync;
 
 protected:
 

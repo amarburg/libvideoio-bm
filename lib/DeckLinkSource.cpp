@@ -307,17 +307,6 @@ namespace libvideoio_bm {
   //=================================================================
 
 
-  // Thread entry point
-  void DeckLinkSource::operator()() {
-    initialize();
-
-    if( _initialized ) {
-      // startStreams();
-      doneSync.wait();
-      stopStreams();
-    }
-  }
-
   bool DeckLinkSource::initialize()
   {
     _initialized = false;
@@ -341,13 +330,16 @@ namespace libvideoio_bm {
     CHECK( (bool)_deckLinkInput ) << "_deckLinkInput not set";
 
     _initialized = true;
-    initializedSync.notify();
 
     return _initialized;
   }
 
-  void DeckLinkSource::startStreams( void )
+  bool DeckLinkSource::startStreams( void )
   {
+    // Automatically initialize if needed
+    if( !_initialized) {
+      if( !initialize() ) return false;
+    }
     //
     //  result = g_deckLinkInput->EnableAudioInput(bmdAudioSampleRate48kHz, g_config.m_audioSampleDepth, g_config.m_audioChannels);
     //  if (result != S_OK)
@@ -355,7 +347,6 @@ namespace libvideoio_bm {
     //
 
     CHECK( _deckLinkInput != nullptr );
-
 
     if( _deckLinkOutput ) {
       LOG(INFO) << "Starting DeckLink output";
@@ -372,9 +363,10 @@ namespace libvideoio_bm {
     HRESULT result = _deckLinkInput->StartStreams();
     if (result != S_OK) {
       LOG(WARNING) << "Failed to start input streams";
-      return;
+      return false;
     }
 
+    return true;
   }
 
   void DeckLinkSource::stopStreams( void )
