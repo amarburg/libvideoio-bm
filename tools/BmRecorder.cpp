@@ -27,6 +27,8 @@ using namespace libvideoio_bm;
 #include "libvideoio/VideoOutput.h"
 using namespace libvideoio;
 
+#include "libbmsdi/helpers.h"
+
 
 
 bool keepGoing = true;
@@ -43,6 +45,21 @@ void signal_handler( int sig )
 			break;
 	}
 }
+
+static void processKbInput( char c, DeckLinkSource &decklink ) {
+
+	switch(c) {
+		case 'f':
+				// Send focus
+				LOG(INFO) << "Sending instantaneous autofocus to camera";
+				decklink.queueSDIBuffer( bmInstantaneousAutofocus(1) );
+	}
+
+}
+
+
+
+
 
 using cv::Mat;
 
@@ -165,10 +182,17 @@ int main( int argc, char** argv )
 					// 	display.waitKey();
 
 					cv::imshow("Image", image);
-					cv::waitKey(1);
+					char c = cv::waitKey(1);
 
 	 				++displayed;
 
+					// Take action on character
+
+					processKbInput( c, decklink );
+
+
+			} else {
+					// TODO Query for character even if not recording ...
 			}
 
 			if( imageOutArg.isSet() ) {
@@ -185,7 +209,7 @@ int main( int argc, char** argv )
 
 		} else {
 			// if grab() fails
-			LOG(INFO) << "miss";
+			LOG(INFO) << "unable to grab frame";
 			++miss;
 			std::this_thread::sleep_for(std::chrono::microseconds(100));
 		}

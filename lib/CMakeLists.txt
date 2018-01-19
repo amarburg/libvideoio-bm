@@ -9,7 +9,7 @@ fips_begin_module( videoio_bm )
     ${BLACKMAGIC_SRCS}
   )
 
-  fips_deps( videoio )
+  fips_deps( videoio bmsdi )
 
   fips_libs( ${OpenCV_LIBS} dl )
 

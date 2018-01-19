@@ -77,7 +77,6 @@ namespace libvideoio_bm {
 
     return true;
   }
-
   bool DeckLinkSource::createVideoInput( const BMDDisplayMode desiredMode, bool do3D )
 {
   HRESULT result;
@@ -385,13 +384,15 @@ LOG(WARNING) << "Display mode not supported";
     return false;
   }
 
-  bool DeckLinkSource::sendSDICameraControl()
+  bool DeckLinkSource::queueSDIBuffer( BMSDIBuffer *buffer )
   {
     if( !_deckLinkOutput ) {
       if (!createVideoOutput()) return false;
     }
 
     CHECK( _deckLinkOutput != nullptr );
+
+    LOG(INFO) << "Trying to send buffer of length " << buffer->len;
 
     // IDeckLinkMutableVideoFrame *videoFrameBlue = CreateSDICameraControlFrame(_deckLinkOutput);
     //

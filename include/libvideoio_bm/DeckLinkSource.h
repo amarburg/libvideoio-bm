@@ -7,6 +7,8 @@
 
 #include "libvideoio/DataSource.h"
 
+#include "libbmsdi/bmsdi.h"
+
 #include "InputCallback.h"
 #include "OutputCallback.h"
 #include "SDICameraControl.h"
@@ -32,6 +34,7 @@ public:
   bool createVideoInput( const BMDDisplayMode desiredMode = bmdModeHD1080p2997, bool do3D = false );
   bool createVideoOutput( const BMDDisplayMode desiredMode = bmdModeHD1080p2997, bool do3D = false );
 
+  bool queueSDIBuffer( BMSDIBuffer *buffer );
 
 
   // Thread entry point

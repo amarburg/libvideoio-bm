@@ -4,6 +4,8 @@ imports:
     videoio:
         git: https://github.com/amarburg/libvideoio.git
         branch: fips
+    libbmsdi:
+        git: https://github.com/amarburg/lbbmsdi.git
 
 exports:
   header-dirs:
