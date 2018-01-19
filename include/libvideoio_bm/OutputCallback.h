@@ -57,6 +57,7 @@ namespace libvideoio_bm {
 				}
 
 				free(newCmd);
+				newCmd = nullptr;
 			}
 
 			if( _bmsdiBuffer->len > 0 ) {

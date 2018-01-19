@@ -15,6 +15,24 @@
 
 namespace libvideoio_bm {
 
+  class InputCallback;
+
+  class InputHandler {
+     public:
+      InputHandler( InputCallback &parent )
+        : _parent(parent)
+      { ;  }
+
+      ~InputHandler()
+      {;}
+
+      protected:
+
+        InputCallback &_parent;
+
+  };
+
+
   class InputCallback : public IDeckLinkInputCallback
   {
   public:
@@ -29,6 +47,7 @@ namespace libvideoio_bm {
     virtual HRESULT STDMETHODCALLTYPE VideoInputFrameArrived(IDeckLinkVideoInputFrame*, IDeckLinkAudioInputPacket*);
 
     active_object::shared_queue< cv::Mat > &queue() { return _queue; }
+    IDeckLinkOutput *deckLinkOutput() { return _deckLinkOutput; }
 
     // ThreadSynchronizer &imageReady() { return _imageReady; }
     // cv::Mat popImage();
@@ -39,7 +58,11 @@ namespace libvideoio_bm {
 
   protected:
 
-    void registerCallback();
+    bool process( IDeckLinkVideoFrame *frame );
+
+    std::thread processInThread( IDeckLinkVideoFrame *frame ) {
+          return std::thread([=] { process(frame); });
+      }
 
   private:
 
@@ -56,8 +79,6 @@ namespace libvideoio_bm {
     //IDeckLinkVideoConversion *_deckLinkConversion;
 
     active_object::shared_queue< cv::Mat > _queue;
-
-    std::unique_ptr<active_object::Active> _thread;
   };
 
 }

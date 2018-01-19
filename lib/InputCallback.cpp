@@ -14,20 +14,16 @@ namespace libvideoio_bm {
   const int maxDequeDepth = 10;
 
 
+
   InputCallback::InputCallback( IDeckLinkInput *input,
                                 IDeckLinkOutput *output,
                                 IDeckLinkDisplayMode *mode )
   : _frameCount(0),
     _deckLinkInput(input),
     _deckLinkOutput(output),
-    _mode(mode),
-		_thread( active_object::Active::createActive() )
+    _mode(mode)
   {
-
-    LOG(INFO) << "Initializing InputCallback in " << std::this_thread::get_id();
-
-    // Register callback in thread
-    _thread->send( std::bind( &InputCallback::registerCallback, this ) );
+    _deckLinkInput->SetCallback(this);
   }
 
   ULONG InputCallback::AddRef(void)
@@ -46,6 +42,8 @@ namespace libvideoio_bm {
     return newRefValue;
   }
 
+
+  // Callbacks are called in a private thread....
   HRESULT InputCallback::VideoInputFrameArrived(IDeckLinkVideoInputFrame* videoFrame,
                                               IDeckLinkAudioInputPacket* audioFrame)
     {
@@ -64,8 +62,7 @@ namespace libvideoio_bm {
           rightEyeFrame = nullptr;
         }
 
-        if (threeDExtensions)
-        threeDExtensions->Release();
+        if (threeDExtensions) threeDExtensions->Release();
 
         if (videoFrame->GetFlags() & bmdFrameHasNoInputSource)
         {
@@ -91,137 +88,14 @@ namespace libvideoio_bm {
                       // timecodeString != nullptr ? timecodeString : "No timecode",
                       videoFrame->GetRowBytes() * videoFrame->GetHeight(),
                       videoFrame->GetWidth(), videoFrame->GetHeight() );
-          //
-          // if (timecodeString)
+
+          // The AddRef will ensure the frame is valid after the end of the callback.
+          videoFrame->AddRef();
+          std::thread t = processInThread( videoFrame );
+          t.detach();
+
+        // if (timecodeString)
           // free((void*)timecodeString);
-
-          // if (g_videoOutputFile != -1)
-          // {
-          // void *frameBytes;
-          // videoFrame->GetBytes(&frameBytes);
-
-          cv::Mat out;
-
-          switch (videoFrame->GetPixelFormat()) {
-          case bmdFormat8BitYUV:
-          {
-              void* data;
-              if ( videoFrame->GetBytes(&data) != S_OK )
-                  return false;
-              cv::Mat mat = cv::Mat(videoFrame->GetHeight(), videoFrame->GetWidth(), CV_8UC2, data,
-                  videoFrame->GetRowBytes());
-              cv::cvtColor(mat, out, cv::COLOR_YUV2BGR ); //_UYVY);
-              return true;
-          }
-          case bmdFormat8BitBGRA:
-          {
-              void* data;
-              if ( videoFrame->GetBytes(&data) != S_OK )
-                  return false;
-
-              cv::Mat mat = cv::Mat(videoFrame->GetHeight(), videoFrame->GetWidth(), CV_8UC4, data);
-              cv::cvtColor(mat, out, cv::COLOR_BGRA2BGR);
-              return true;
-          }
-          default:
-          {
-              //LOG(INFO) << "Converting through Blackmagic VideoConversionInstance";
-              IDeckLinkMutableVideoFrame*     dstFrame = NULL;
-
-              //CvMatDeckLinkVideoFrame cvMatWrapper(videoFrame->GetHeight(), videoFrame->GetWidth());
-              HRESULT result = _deckLinkOutput->CreateVideoFrame( videoFrame->GetWidth(), videoFrame->GetHeight(),
-                                          videoFrame->GetWidth() * 4, bmdFormat8BitBGRA, bmdFrameFlagDefault, &dstFrame);
-                if (result != S_OK)
-                {
-                        LOG(WARNING) << "Failed to create destination video frame";
-                        return false;
-                }
-
-
-              IDeckLinkVideoConversion *converter =  CreateVideoConversionInstance();
-
-              //LOG(WARNING) << "Converting " << std::hex << videoFrame->GetPixelFormat() << " to " << dstFrame->GetPixelFormat();
-              result =  converter->ConvertFrame(videoFrame, dstFrame);
-
-              if (result != S_OK ) {
-                 LOG(WARNING) << "Failed to do conversion " << std::hex << result;
-                return false;
-              }
-
-              void *buffer = nullptr;
-              if( dstFrame->GetBytes( &buffer ) != S_OK ) {
-                LOG(WARNING) << "Unable to get bytes from dstFrame";
-                return false;
-              }
-              cv::Mat srcMat( cv::Size(dstFrame->GetWidth(), dstFrame->GetHeight()), CV_8UC4, buffer, dstFrame->GetRowBytes() );
-              //cv::cvtColor(srcMat, out, cv::COLOR_BGRA2BGR);
-              cv::resize( srcMat, out, cv::Size(), 0.25, 0.25  );
-
-              dstFrame->Release();
-            //  return true;
-          }
-        }
-
-          // auto dstFrame = new MyOutputImage( videoFrame->GetWidth(), videoFrame->GetHeight(),
-          //                                   videoFrame->GetWidth()*4,
-          //                                  bmdFormat8BitBGRA  );
-          //
-          // if( _deckLinkConversion->ConvertFrame( videoFrame, dstFrame ) != S_OK ) {
-          // }
-
-          // See:
-          // https://developer.apple.com/library/content/technotes/tn2162/_index.html#//apple_ref/doc/uid/DTS40013070-CH1-TNTAG8-V210__4_2_2_COMPRESSION_TYPE
-          // const unsigned int uwidth = videoFrame->GetWidth();
-          // const unsigned int uheight = videoFrame->GetHeight();
-          //
-          // int i = 0,j = 0, r = 0, g = 0, b = 0;
-          // typedef unsigned char BYTE;
-          // cv::Mat out(cv::Size(uwidth, uheight), CV_8UC3);
-          //
-          // unsigned char* pData = (unsigned char *)frameBytes;
-          //
-          // for(i=0, j=0; i < uwidth * uheight*3 ; i+=6, j+=4)
-          // {
-          //    unsigned char u = pData[j];
-          //    unsigned char y = pData[j+1];
-          //    unsigned char v = pData[j+2];
-          //
-          //    b = 1.0*y + 8 + 1.402*(v-128);
-          //    g = 1.0*y - 0.34413*(u-128) - 0.71414*(v-128);
-          //    r = 1.0*y + 1.772*(u-128);
-          //
-          //    if(r>255) r =255;
-          //    if(g>255) g =255;
-          //    if(b>255) b =255;
-          //    if(r<0)   r =0;
-          //    if(g<0)   g =0;
-          //    if(b<0)   b =0;
-          //
-          //    out.data[i] = (BYTE)(r*220/256);
-          //    out.data[i+1] = (BYTE)(g*220/256);
-          //    out.data[i+2] =(BYTE)(b*220/256);
-          // }
-
-
-          // Decode to Mat?
-
-          // cv::Mat out( cv::Size(dstFrame->GetWidth(), dstFrame->GetHeight()),
-          //                       CV_8UC4, dstFrame->BufferBytes(), videoFrame->GetRowBytes() );
-
-
-          if( _queue.size() < maxDequeDepth ) {
-            _queue.push( out );
-          } else {
-            LOG(WARNING) << "Image queue full, unable to queue more images";
-          }
-
-          //   write(g_videoOutputFile, frameBytes, videoFrame->GetRowBytes() * videoFrame->GetHeight());
-          //
-          //   if (rightEyeFrame)
-          //   {
-          //     rightEyeFrame->GetBytes(&frameBytes);
-          //     write(g_videoOutputFile, frameBytes, videoFrame->GetRowBytes() * videoFrame->GetHeight());
-          //   }
 
         }
       }
@@ -290,7 +164,6 @@ namespace libvideoio_bm {
 
   ImageSize InputCallback::imageSize(void) const {
       if( !_mode ) return ImageSize(0,0);
-
       return ImageSize( _mode->GetWidth(), _mode->GetHeight() );
   }
 
@@ -306,12 +179,140 @@ namespace libvideoio_bm {
     //_thread.doDone();
   }
 
-  // Functions which run in thread
-  void InputCallback::registerCallback(void) {
+  bool InputCallback::process(  IDeckLinkVideoFrame *videoFrame )
+  {
+    LOG(INFO) << "Start process in thread " << std::this_thread::get_id();
 
-    LOG(INFO) << "Registering callback in thread " << std::this_thread::get_id();
-      _deckLinkInput->SetCallback(this);
+      cv::Mat out;
+
+      switch (videoFrame->GetPixelFormat()) {
+      case bmdFormat8BitYUV:
+      {
+          void* data;
+          if ( videoFrame->GetBytes(&data) != S_OK )
+              return false;
+          cv::Mat mat = cv::Mat(videoFrame->GetHeight(), videoFrame->GetWidth(), CV_8UC2, data,
+              videoFrame->GetRowBytes());
+          cv::cvtColor(mat, out, cv::COLOR_YUV2BGR ); //_UYVY);
+          return true;
+      }
+      case bmdFormat8BitBGRA:
+      {
+          void* data;
+          if ( videoFrame->GetBytes(&data) != S_OK )
+              return false;
+
+          cv::Mat mat = cv::Mat(videoFrame->GetHeight(), videoFrame->GetWidth(), CV_8UC4, data);
+          cv::cvtColor(mat, out, cv::COLOR_BGRA2BGR);
+          return true;
+      }
+      default:
+      {
+          //LOG(INFO) << "Converting through Blackmagic VideoConversionInstance";
+          IDeckLinkMutableVideoFrame*     dstFrame = NULL;
+
+          //CvMatDeckLinkVideoFrame cvMatWrapper(videoFrame->GetHeight(), videoFrame->GetWidth());
+          HRESULT result = _deckLinkOutput->CreateVideoFrame( videoFrame->GetWidth(), videoFrame->GetHeight(),
+                                      videoFrame->GetWidth() * 4, bmdFormat8BitBGRA, bmdFrameFlagDefault, &dstFrame);
+            if (result != S_OK)
+            {
+                    LOG(WARNING) << "Failed to create destination video frame";
+                    return false;
+            }
+
+
+          IDeckLinkVideoConversion *converter =  CreateVideoConversionInstance();
+
+          //LOG(WARNING) << "Converting " << std::hex << videoFrame->GetPixelFormat() << " to " << dstFrame->GetPixelFormat();
+          result =  converter->ConvertFrame(videoFrame, dstFrame);
+
+          if (result != S_OK ) {
+             LOG(WARNING) << "Failed to do conversion " << std::hex << result;
+            return false;
+          }
+
+          void *buffer = nullptr;
+          if( dstFrame->GetBytes( &buffer ) != S_OK ) {
+            LOG(WARNING) << "Unable to get bytes from dstFrame";
+            return false;
+          }
+          cv::Mat srcMat( cv::Size(dstFrame->GetWidth(), dstFrame->GetHeight()), CV_8UC4, buffer, dstFrame->GetRowBytes() );
+          //cv::cvtColor(srcMat, out, cv::COLOR_BGRA2BGR);
+          cv::resize( srcMat, out, cv::Size(), 0.25, 0.25  );
+
+          dstFrame->Release();
+          videoFrame->Release();
+        //  return true;
+      }
+    }
+
+      // auto dstFrame = new MyOutputImage( videoFrame->GetWidth(), videoFrame->GetHeight(),
+      //                                   videoFrame->GetWidth()*4,
+      //                                  bmdFormat8BitBGRA  );
+      //
+      // if( _deckLinkConversion->ConvertFrame( videoFrame, dstFrame ) != S_OK ) {
+      // }
+
+      // See:
+      // https://developer.apple.com/library/content/technotes/tn2162/_index.html#//apple_ref/doc/uid/DTS40013070-CH1-TNTAG8-V210__4_2_2_COMPRESSION_TYPE
+      // const unsigned int uwidth = videoFrame->GetWidth();
+      // const unsigned int uheight = videoFrame->GetHeight();
+      //
+      // int i = 0,j = 0, r = 0, g = 0, b = 0;
+      // typedef unsigned char BYTE;
+      // cv::Mat out(cv::Size(uwidth, uheight), CV_8UC3);
+      //
+      // unsigned char* pData = (unsigned char *)frameBytes;
+      //
+      // for(i=0, j=0; i < uwidth * uheight*3 ; i+=6, j+=4)
+      // {
+      //    unsigned char u = pData[j];
+      //    unsigned char y = pData[j+1];
+      //    unsigned char v = pData[j+2];
+      //
+      //    b = 1.0*y + 8 + 1.402*(v-128);
+      //    g = 1.0*y - 0.34413*(u-128) - 0.71414*(v-128);
+      //    r = 1.0*y + 1.772*(u-128);
+      //
+      //    if(r>255) r =255;
+      //    if(g>255) g =255;
+      //    if(b>255) b =255;
+      //    if(r<0)   r =0;
+      //    if(g<0)   g =0;
+      //    if(b<0)   b =0;
+      //
+      //    out.data[i] = (BYTE)(r*220/256);
+      //    out.data[i+1] = (BYTE)(g*220/256);
+      //    out.data[i+2] =(BYTE)(b*220/256);
+      // }
+
+
+      // Decode to Mat?
+
+      // cv::Mat out( cv::Size(dstFrame->GetWidth(), dstFrame->GetHeight()),
+      //                       CV_8UC4, dstFrame->BufferBytes(), videoFrame->GetRowBytes() );
+
+
+      if( queue().size() < maxDequeDepth ) {
+        queue().push( out );
+      } else {
+        LOG(WARNING) << "Image queue full, unable to queue more images";
+      }
+
+      //   write(g_videoOutputFile, frameBytes, videoFrame->GetRowBytes() * videoFrame->GetHeight());
+      //
+      //   if (rightEyeFrame)
+      //   {
+      //     rightEyeFrame->GetBytes(&frameBytes);
+      //     write(g_videoOutputFile, frameBytes, videoFrame->GetRowBytes() * videoFrame->GetHeight());
+      //   }
+
+      LOG(INFO) << "Finishing process in thread " << std::this_thread::get_id();
+
   }
+
+
+
 
 
 }
