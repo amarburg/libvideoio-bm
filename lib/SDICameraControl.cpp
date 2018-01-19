@@ -36,7 +36,7 @@
 #include "g3log/g3log.hpp"
 
 #include "libvideoio_bm/Identical3DFrames.h"
-
+#include "libbmsdi/bmsdi.h"
 
 namespace libvideoio_bm {
 
@@ -57,7 +57,7 @@ const uint32_t kBlueData[4] = { 0x40aa298, 0x2a8a62a8, 0x298aa040, 0x2a8102a8 };
 // Studio Camera control packet:
 // Set dynamic range to film.
 // See Studio Camera manual for more information on protocol.
-const uint8_t kSDIRemoteControlData[9] = { 0x00, 0x07, 0x00, 0x00, 0x01, 0x07, 0x01, 0x00, 0x00 };
+//const uint8_t kSDIRemoteControlData[9] = { 0x00, 0x07, 0x00, 0x00, 0x01, 0x07, 0x01, 0x00, 0x00 };
 
 // Data Identifier
 const uint8_t kSDIRemoteControlDID = 0x51;
@@ -69,7 +69,7 @@ const uint8_t kSDIRemoteControlSDID = 0x53;
 const uint32_t kSDIRemoteControlLine = 16;
 
 // Keep track of the number of scheduled frames
-uint32_t gTotalFramesScheduled = 0;
+//uint32_t gTotalFramesScheduled = 0;
 
 
 //  This function translates a byte into a 10-bit sample
@@ -150,7 +150,7 @@ static void WriteAncillaryDataPacket(uint32_t* line, const uint8_t did, const ui
 	WriteAncDataToLuma(line, sum, length);
 }
 
-static void SetVancData(IDeckLinkVideoFrameAncillary* ancillary)
+static void SetVancData(IDeckLinkVideoFrameAncillary* ancillary, BMSDIBuffer *cmd )
 {
 	HRESULT   result;
 	uint32_t* buffer;
@@ -161,8 +161,10 @@ static void SetVancData(IDeckLinkVideoFrameAncillary* ancillary)
 		LOGF(WARNING, "Could not get buffer for Vertical blanking line - result = %08x\n", result);
 		return;
 	}
+
 	// Write camera control data to buffer
-	WriteAncillaryDataPacket(buffer, kSDIRemoteControlDID, kSDIRemoteControlSDID, kSDIRemoteControlData, sizeof(kSDIRemoteControlData)/sizeof(kSDIRemoteControlData[0]));
+	WriteAncillaryDataPacket(buffer, kSDIRemoteControlDID, kSDIRemoteControlSDID,
+													(const uint8_t *)cmd->data, cmd->len);
 }
 
 static void FillBlue(IDeckLinkMutableVideoFrame* theFrame)
@@ -183,7 +185,7 @@ static void FillBlue(IDeckLinkMutableVideoFrame* theFrame)
 	}
 }
 
-IDeckLinkMutableVideoFrame* AddSDICameraControlFrame( IDeckLinkOutput *deckLinkOutput, IDeckLinkMutableVideoFrame* frame )
+IDeckLinkMutableVideoFrame* AddSDICameraControlFrame( IDeckLinkOutput *deckLinkOutput, IDeckLinkMutableVideoFrame* frame, BMSDIBuffer *buffer )
 {
 	HRESULT                         result;
 	IDeckLinkVideoFrameAncillary*	ancillaryData = nullptr;
@@ -195,7 +197,7 @@ IDeckLinkMutableVideoFrame* AddSDICameraControlFrame( IDeckLinkOutput *deckLinkO
 		goto bail;
 	}
 
-	SetVancData(ancillaryData);
+	SetVancData(ancillaryData, buffer );
 	result = frame->SetAncillaryData(ancillaryData);
 	if (result != S_OK)
 	{

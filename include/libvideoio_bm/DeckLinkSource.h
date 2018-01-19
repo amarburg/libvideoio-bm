@@ -76,6 +76,9 @@ protected:
   IDeckLinkInput *_deckLinkInput;
   IDeckLinkOutput *_deckLinkOutput;
 
+  BMDTimeScale _outputTimeScale;
+  BMDTimeValue _outputTimeValue;
+
   InputCallback *_inputCallback;
   OutputCallback *_outputCallback;
 

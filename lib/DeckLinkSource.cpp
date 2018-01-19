@@ -278,6 +278,12 @@ LOG(WARNING) << "Display mode not supported";
       return false;
     }
 
+    result = displayMode->GetFrameRate( &_outputTimeValue, &_outputTimeScale );
+    if( result != S_OK ) {
+    LOG(WARNING) << "Unable to get time rate information for output...";
+    return false;
+    }
+
     // Set the callback object to the DeckLink device's output interface
     _outputCallback = new OutputCallback( _deckLinkOutput, displayMode );
     result = _deckLinkOutput->SetScheduledFrameCompletionCallback( _outputCallback );
@@ -344,11 +350,22 @@ LOG(WARNING) << "Display mode not supported";
     //          goto bail;
     //
 
-    CHECK( _deckLink != nullptr );
+    CHECK( _deckLinkInput != nullptr );
 
-    auto result = _deckLinkInput->StartStreams();
+
+    if( _deckLinkOutput ) {
+    	HRESULT result = _deckLinkOutput->StartScheduledPlayback(0, _outputTimeScale, 1.0);
+    	if(result != S_OK)
+    	{
+    	  LOG(WARNING) << "Could not start video output - result = " << std::hex << result;
+    	}
+
+    }
+
+
+    HRESULT result = _deckLinkInput->StartStreams();
     if (result != S_OK) {
-      LOG(WARNING) << "Failed to start streams";
+      LOG(WARNING) << "Failed to start input streams";
       return;
     }
 
@@ -359,8 +376,18 @@ LOG(WARNING) << "Display mode not supported";
     CHECK( _deckLinkInput != nullptr );
     auto result = _deckLinkInput->StopStreams();
     if (result != S_OK) {
-      LOG(WARNING) << "Failed to stop streams";
+      LOG(WARNING) << "Failed to stop input streams";
       return;
+    }
+
+    if( _deckLinkOutput ) {
+      // // And stop after one frame
+      BMDTimeValue actualStopTime;
+      result = _deckLinkOutput->StopScheduledPlayback(0, &actualStopTime, _outputTimeScale);
+      if(result != S_OK)
+      {
+        LOG(WARNING) << "Could not stop video playback - result = " << std::hex << result;
+      }
     }
   }
 
@@ -386,13 +413,14 @@ LOG(WARNING) << "Display mode not supported";
 
   bool DeckLinkSource::queueSDIBuffer( BMSDIBuffer *buffer )
   {
-    if( !_deckLinkOutput ) {
-      if (!createVideoOutput()) return false;
-    }
+    if( !_deckLinkOutput ) return false;
 
-    CHECK( _deckLinkOutput != nullptr );
+    CHECK( _outputCallback != nullptr );
 
     LOG(INFO) << "Trying to send buffer of length " << buffer->len;
+
+    // Should check to see if the buffer is full...
+    _outputCallback->queue().push(buffer);
 
     // IDeckLinkMutableVideoFrame *videoFrameBlue = CreateSDICameraControlFrame(_deckLinkOutput);
     //
