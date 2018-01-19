@@ -39,7 +39,7 @@ namespace libvideoio_bm {
 
 		void scheduleFrame( IDeckLinkVideoFrame *frame, uint8_t count = 1 )
 		{
-			LOG(INFO) << "Scheduled frame " << _totalFramesScheduled;
+			//LOG(INFO) << "Scheduled frame " << _totalFramesScheduled;
 			_deckLinkOutput->ScheduleVideoFrame(_blankFrame, _totalFramesScheduled*_timeValue, _timeValue*count, _timeScale );
 			_totalFramesScheduled += count;
 		}
@@ -48,19 +48,22 @@ namespace libvideoio_bm {
 		{
 			// For simplicity, this will do just one buffer per frame for now
 			BMSDIBuffer *newCmd = nullptr;
+			int bmSDICount = 0;
 			while( _queue.try_and_pop(newCmd) ) {
-				LOG(INFO) << "Got a SDI protocol command to send!";
+				//LOG(INFO) << "Got a SDI protocol command to send!";
 
 				if( ! bmAppendBuffer( _bmsdiBuffer, newCmd ) ) {
 					// Failure means there's no room in the buffer
 					break;
 				}
 
+				bmSDICount++;
 				free(newCmd);
 				newCmd = nullptr;
 			}
 
 			if( _bmsdiBuffer->len > 0 ) {
+				LOG(INFO) << "Scheduling frame with " << bmSDICount << " BM SDI Commands";
 				scheduleFrame( AddSDICameraControlFrame( _deckLinkOutput, _blankFrame, _bmsdiBuffer ) );
 
 				bmResetBuffer( _bmsdiBuffer );
@@ -73,7 +76,7 @@ namespace libvideoio_bm {
 			} else {
 
 				// When a video frame completes, reschedule is again...
-				scheduleFrame( completedFrame );
+				scheduleFrame( _blankFrame  );
 			}
 
 			// Can I release the completeFrame?

@@ -125,15 +125,16 @@ int main( int argc, char** argv )
 	libvideoio::VideoOutput videoOutput( videoOutArg.getValue(), 30 );
 
 	DeckLinkSource decklink;
-	std::thread dlThread( std::ref(decklink) );
+	//std::thread dlThread( std::ref(decklink) );
+
+
 
 	// Need to wait for initialization
-	if( decklink.initializedSync.wait_for( std::chrono::seconds(1) ) == false || !decklink.initialized() ) {
+//	if( decklink.initializedSync.wait_for( std::chrono::seconds(1) ) == false || !decklink.initialized() ) {
+	if( !decklink.initialize() ) {
 		LOG(WARNING) << "Unable to initialize DeckLinkSource";
 		exit(-1);
 	}
-
-
 
 	const int duration = durationArg.getValue();
 
