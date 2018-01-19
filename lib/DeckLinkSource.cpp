@@ -406,6 +406,9 @@ namespace libvideoio_bm {
 
   bool DeckLinkSource::grab( void )
   {
+    // TODO.  Go back and check how many copies are being made...
+    _grabbedImage = cv::Mat();
+
     if( _InputHandler ) {
 
       while( _InputHandler->queue().try_and_pop(_grabbedImage) ) {;}

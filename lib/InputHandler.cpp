@@ -26,21 +26,9 @@ namespace libvideoio_bm {
     _deckLinkInput->SetCallback(this);
   }
 
-  ULONG InputHandler::AddRef(void)
-  {
-    return __sync_add_and_fetch(&_refCount, 1);
-  }
+  ULONG InputHandler::AddRef(void) { return 1;}
 
-  ULONG InputHandler::Release(void)
-  {
-    int32_t newRefValue = __sync_sub_and_fetch(&_refCount, 1);
-    if (newRefValue == 0)
-    {
-      delete this;
-      return 0;
-    }
-    return newRefValue;
-  }
+  ULONG InputHandler::Release(void) { return 1; }
 
 
   // Callbacks are called in a private thread....
@@ -57,8 +45,7 @@ namespace libvideoio_bm {
         // If 3D mode is enabled we retreive the 3D extensions interface which gives.
         // us access to the right eye frame by calling GetFrameForRightEye() .
         if ( (videoFrame->QueryInterface(IID_IDeckLinkVideoFrame3DExtensions, (void **) &threeDExtensions) != S_OK) ||
-                                          (threeDExtensions->GetFrameForRightEye(&rightEyeFrame) != S_OK))
-        {
+                                          (threeDExtensions->GetFrameForRightEye(&rightEyeFrame) != S_OK)) {
           rightEyeFrame = nullptr;
         }
 
@@ -179,9 +166,14 @@ namespace libvideoio_bm {
     //_thread.doDone();
   }
 
+
+
+
+
+
   bool InputHandler::process(  IDeckLinkVideoFrame *videoFrame )
   {
-    LOG(INFO) << "Start process in thread " << std::this_thread::get_id();
+  //  LOG(INFO) << "Start process in thread " << std::this_thread::get_id();
 
       cv::Mat out;
 
@@ -246,68 +238,20 @@ namespace libvideoio_bm {
       }
     }
 
-      // auto dstFrame = new MyOutputImage( videoFrame->GetWidth(), videoFrame->GetHeight(),
-      //                                   videoFrame->GetWidth()*4,
-      //                                  bmdFormat8BitBGRA  );
-      //
-      // if( _deckLinkConversion->ConvertFrame( videoFrame, dstFrame ) != S_OK ) {
-      // }
 
-      // See:
-      // https://developer.apple.com/library/content/technotes/tn2162/_index.html#//apple_ref/doc/uid/DTS40013070-CH1-TNTAG8-V210__4_2_2_COMPRESSION_TYPE
-      // const unsigned int uwidth = videoFrame->GetWidth();
-      // const unsigned int uheight = videoFrame->GetHeight();
-      //
-      // int i = 0,j = 0, r = 0, g = 0, b = 0;
-      // typedef unsigned char BYTE;
-      // cv::Mat out(cv::Size(uwidth, uheight), CV_8UC3);
-      //
-      // unsigned char* pData = (unsigned char *)frameBytes;
-      //
-      // for(i=0, j=0; i < uwidth * uheight*3 ; i+=6, j+=4)
-      // {
-      //    unsigned char u = pData[j];
-      //    unsigned char y = pData[j+1];
-      //    unsigned char v = pData[j+2];
-      //
-      //    b = 1.0*y + 8 + 1.402*(v-128);
-      //    g = 1.0*y - 0.34413*(u-128) - 0.71414*(v-128);
-      //    r = 1.0*y + 1.772*(u-128);
-      //
-      //    if(r>255) r =255;
-      //    if(g>255) g =255;
-      //    if(b>255) b =255;
-      //    if(r<0)   r =0;
-      //    if(g<0)   g =0;
-      //    if(b<0)   b =0;
-      //
-      //    out.data[i] = (BYTE)(r*220/256);
-      //    out.data[i+1] = (BYTE)(g*220/256);
-      //    out.data[i+2] =(BYTE)(b*220/256);
-      // }
+    if( queue().size() < maxDequeDepth && !out.empty() ) {
+      queue().push( out );
+    } else {
+      LOG(WARNING) << "Image queue full, unable to queue more images";
+    }
 
-
-      // Decode to Mat?
-
-      // cv::Mat out( cv::Size(dstFrame->GetWidth(), dstFrame->GetHeight()),
-      //                       CV_8UC4, dstFrame->BufferBytes(), videoFrame->GetRowBytes() );
-
-
-      if( queue().size() < maxDequeDepth ) {
-        queue().push( out );
-      } else {
-        LOG(WARNING) << "Image queue full, unable to queue more images";
-      }
-
-      //   write(g_videoOutputFile, frameBytes, videoFrame->GetRowBytes() * videoFrame->GetHeight());
-      //
       //   if (rightEyeFrame)
       //   {
       //     rightEyeFrame->GetBytes(&frameBytes);
       //     write(g_videoOutputFile, frameBytes, videoFrame->GetRowBytes() * videoFrame->GetHeight());
       //   }
 
-      LOG(INFO) << "Finishing process in thread " << std::this_thread::get_id();
+      //LOG(INFO) << "Finishing process in thread " << std::this_thread::get_id();
 
   }
 

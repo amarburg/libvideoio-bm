@@ -54,6 +54,15 @@ static void processKbInput( char c, DeckLinkSource &decklink ) {
 				LOG(INFO) << "Sending instantaneous autofocus to camera";
 				decklink.queueSDIBuffer( bmInstantaneousAutofocus(1) );
 				break;
+		case 's':
+				// Toggle between reference sources
+				static uint8_t ref = 0;
+				LOG(INFO) << "Sending reference " << (int)ref;
+
+				decklink.queueSDIBuffer( bmReferenceSource(1,ref) );
+
+				if( ++ref > 2 ) ref = 0;
+				break;
 		case 'q':
 				keepGoing = false;
 				break;
