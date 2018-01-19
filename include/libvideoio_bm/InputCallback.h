@@ -6,6 +6,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+#include "active_object/active.h"
 #include "active_object/shared_queue.h"
 #include <DeckLinkAPI.h>
 #include "ThreadSynchronizer.h"
@@ -32,7 +33,13 @@ namespace libvideoio_bm {
     // ThreadSynchronizer &imageReady() { return _imageReady; }
     // cv::Mat popImage();
 
+    void stopStreams();
+
     libvideoio::ImageSize imageSize() const;
+
+  protected:
+
+    void registerCallback();
 
   private:
 
@@ -50,6 +57,7 @@ namespace libvideoio_bm {
 
     active_object::shared_queue< cv::Mat > _queue;
 
+    std::unique_ptr<active_object::Active> _thread;
   };
 
 }

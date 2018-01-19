@@ -53,6 +53,10 @@ static void processKbInput( char c, DeckLinkSource &decklink ) {
 				// Send focus
 				LOG(INFO) << "Sending instantaneous autofocus to camera";
 				decklink.queueSDIBuffer( bmInstantaneousAutofocus(1) );
+				break;
+		case 'q':
+				keepGoing = false;
+				break;
 	}
 
 }

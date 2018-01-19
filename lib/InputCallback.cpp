@@ -1,5 +1,6 @@
 
 #include <iostream>
+#include <thread>
 
 #include <g3log/g3log.hpp>
 
@@ -19,8 +20,14 @@ namespace libvideoio_bm {
   : _frameCount(0),
     _deckLinkInput(input),
     _deckLinkOutput(output),
-    _mode(mode)
+    _mode(mode),
+		_thread( active_object::Active::createActive() )
   {
+
+    LOG(INFO) << "Initializing InputCallback in " << std::this_thread::get_id();
+
+    // Register callback in thread
+    _thread->send( std::bind( &InputCallback::registerCallback, this ) );
   }
 
   ULONG InputCallback::AddRef(void)
@@ -62,7 +69,7 @@ namespace libvideoio_bm {
 
         if (videoFrame->GetFlags() & bmdFrameHasNoInputSource)
         {
-          LOGF(WARNING,"Frame received (#%lu) - No input signal detected", _frameCount);
+          LOGF(WARNING,"(%d) Frame received (#%lu) - No input signal detected", std::this_thread::get_id(), _frameCount);
         }
         else
         {
@@ -78,7 +85,8 @@ namespace libvideoio_bm {
           //   }
           // }
 
-          LOGF(INFO, "Frame received (#%lu) %li bytes, %lu x %lu",
+          LOGF(INFO, "(%u) Frame received (#%lu) %li bytes, %lu x %lu",
+                      std::this_thread::get_id(),
                       _frameCount,
                       // timecodeString != nullptr ? timecodeString : "No timecode",
                       videoFrame->GetRowBytes() * videoFrame->GetHeight(),
@@ -243,7 +251,7 @@ namespace libvideoio_bm {
 
     HRESULT InputCallback::VideoInputFormatChanged(BMDVideoInputFormatChangedEvents events, IDeckLinkDisplayMode *mode, BMDDetectedVideoInputFormatFlags formatFlags)
     {
-      LOG(INFO) << "Received Video Input Format Changed";
+      LOG(INFO) << "(" << std::this_thread::get_id() << ") Received Video Input Format Changed";
 
       // This only gets called if bmdVideoInputEnableFormatDetection was set
       // when enabling video input
@@ -285,5 +293,25 @@ namespace libvideoio_bm {
 
       return ImageSize( _mode->GetWidth(), _mode->GetHeight() );
   }
+
+
+  void InputCallback::stopStreams() {
+
+    LOG(INFO) << "(" << std::this_thread::get_id() << ") Stopping DeckLinkInput streams";
+    if (_deckLinkInput->StopStreams() != S_OK) {
+      LOG(WARNING) << "Failed to stop input streams";
+    }
+    LOG(INFO) << "    ...done";
+
+    //_thread.doDone();
+  }
+
+  // Functions which run in thread
+  void InputCallback::registerCallback(void) {
+
+    LOG(INFO) << "Registering callback in thread " << std::this_thread::get_id();
+      _deckLinkInput->SetCallback(this);
+  }
+
 
 }

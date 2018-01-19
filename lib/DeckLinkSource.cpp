@@ -214,12 +214,11 @@ namespace libvideoio_bm {
     // Configure the capture callback ... needs an output to create frames for conversion
     CHECK( _deckLinkOutput != nullptr );
     _inputCallback = new InputCallback( _deckLinkInput, _deckLinkOutput,  displayMode );
-    _deckLinkInput->SetCallback(_inputCallback);
 
     // Made it this far?  Great!
     result = _deckLinkInput->EnableVideoInput(displayMode->GetDisplayMode(),
-    pixelFormat,
-    inputFlags);
+                                              pixelFormat,
+                                              inputFlags);
     if (result != S_OK)
     {
       LOG(WARNING) << "Failed to enable video input. Is another application using the card?";
@@ -381,7 +380,9 @@ namespace libvideoio_bm {
   void DeckLinkSource::stopStreams( void )
   {
 
-    CHECK( _deckLinkInput != nullptr );
+    CHECK( _inputCallback != nullptr );
+
+    _inputCallback->stopStreams();
 
     // LOG(INFO) << "Pausing DeckLinkInput streams";
     // if ( _deckLinkInput->PauseStreams() != S_OK) {
@@ -395,12 +396,6 @@ namespace libvideoio_bm {
     //   LOG(WARNING) << "Failed to flush streams";
     //   return;
     // }
-
-    if (_deckLinkInput->StopStreams() != S_OK) {
-      LOG(WARNING) << "Failed to stop input streams";
-      return;
-    }
-    LOG(INFO) << "    ...done";
 
 
     if( _deckLinkOutput ) {
