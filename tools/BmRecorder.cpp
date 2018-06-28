@@ -7,21 +7,13 @@ using namespace std;
 
 #include <signal.h>
 
-// #include <opencv2/opencv.hpp>
-//
-// #define BOOST_FILESYSTEM_NO_DEPRECATED
-// #include <boost/filesystem.hpp>
-// namespace fs = boost::filesystem;
+#include <CLI/CLI.hpp>
 
-#include <tclap/CmdLine.h>
-
-#include <g3log/g3log.hpp>
-#include <g3log/logworker.hpp>
+#include <libg3logger/g3logger.h>
 
 #include "libvideoio_bm/DeckLinkSource.h"
 using namespace libvideoio_bm;
 
-#include "libvideoio/G3LogSinks.h"
 #include "libvideoio/Display.h"
 #include "libvideoio/ImageOutput.h"
 #include "libvideoio/VideoOutput.h"
@@ -85,43 +77,47 @@ int main( int argc, char** argv )
 
 	signal( SIGINT, signal_handler );
 
-	bool doGui = false;
+
 	const int skip = 1;
 
-	TCLAP::CmdLine cmd("BmRecorder", ' ', "0.1");
+	CLI::App app{"Simple BlackMagic camera recorder"};
 
-	// TCLAP::ValueArg<std::string> resolutionArg("r","resolution","Input resolution: hd2k,hd1080,hd720,vga",false,"hd1080","", cmd);
-	// TCLAP::ValueArg<float> fpsArg("f","fps","Input FPS, otherwise defaults to max FPS from input source",false,0.0,"", cmd);
-	//
-	TCLAP::ValueArg<std::string> statisticsOutputArg("","statistics-output","",false,"","", cmd);
-	TCLAP::ValueArg<std::string> statisticsIdArg("","statistics-id","",false,"","", cmd);
+	bool doGui = false;
+	app.add_flag("--display", doGui, "Show incoming video");
 
-	TCLAP::ValueArg<std::string> videoOutArg("","video-out","",false,"","", cmd);
-	TCLAP::ValueArg<std::string> loggerOutArg("","logger-out","",false,"","", cmd);
-	TCLAP::ValueArg<std::string> imageOutArg("","images-out","printf-formatted output filename for images",false,"","printf-formatted name for images", cmd);
+	string videoOut, imageOutput, loggerOut;
+	app.add_option("--video-out", videoOut, "Output file");
+	app.add_option("--image-out", imageOutput, "printf-formatted output filename for images");
+	app.add_option("--logger-out", loggerOut, "Logger output file");
 
+	int duration = -1, numFrames = -1;
+	app.add_option("-d,--duration", duration, "Length to record in seconds");
+	app.add_option("-f,--frames", numFrames, "Number of frames to capture");
 
-	TCLAP::SwitchArg guiSwitch("","display","", cmd, false);
+// 	// TCLAP::ValueArg<std::string> resolutionArg("r","resolution","Input resolution: hd2k,hd1080,hd720,vga",false,"hd1080","", cmd);
+// 	// TCLAP::ValueArg<float> fpsArg("f","fps","Input FPS, otherwise defaults to max FPS from input source",false,0.0,"", cmd);
+// 	//
+// 	TCLAP::ValueArg<std::string> statisticsOutputArg("","statistics-output","",false,"","", cmd);
+// 	TCLAP::ValueArg<std::string> statisticsIdArg("","statistics-id","",false,"","", cmd);
+///
+// 	// TCLAP::ValueArg<int> skipArg("","skip","NOnly display every <skip> frames",false,10,"frames", cmd);
+//
+// 	try {
+//
+// 	cmd.parse(argc, argv );
+//
+// } catch (TCLAP::ArgException &e)  // catch any exceptions
+// 	{
+// 		std::cout<< "error: " << e.error() << " for arg " << e.argId();
+// 		exit(-1);
+// 	}
 
-	TCLAP::ValueArg<int> durationArg("","duration","Duration",false,0,"seconds", cmd);
-	TCLAP::ValueArg<int> numFramesArg("","frames","Number of frames to capture",false,0,"frames", cmd);
-	// TCLAP::ValueArg<int> skipArg("","skip","NOnly display every <skip> frames",false,10,"frames", cmd);
+	CLI11_PARSE(app, argc, argv);
 
-	try {
-
-	cmd.parse(argc, argv );
-
-} catch (TCLAP::ArgException &e)  // catch any exceptions
-	{
-		std::cout<< "error: " << e.error() << " for arg " << e.argId();
-		exit(-1);
-	}
-
-	doGui = guiSwitch.getValue();
 
 	//
 	// Output validation
-	if( !videoOutArg.isSet() && !imageOutArg.isSet() && !loggerOutArg.isSet() && !guiSwitch.isSet() ) {
+	if( videoOut.empty() && imageOutput.empty() && loggerOut.empty() && !doGui ) {
 		LOG(WARNING) << "No output options set.";
 	}
 
@@ -129,9 +125,9 @@ int main( int argc, char** argv )
 	//
 
 	libvideoio::Display display( doGui );
-	libvideoio::ImageOutput loggerOutput( loggerOutArg.getValue() );
-	loggerOutput.registerField( 0, "image" );
-	libvideoio::VideoOutput videoOutput( videoOutArg.getValue(), 30 );
+	//libvideoio::Logg loggerOutput( loggerOut );
+	//loggerOutput.registerField( 0, "image" );
+	libvideoio::VideoOutput videoOutput( videoOut, 30 );
 
 	DeckLinkSource decklink;
 	//std::thread dlThread( std::ref(decklink) );
@@ -144,8 +140,6 @@ int main( int argc, char** argv )
 	// 	LOG(WARNING) << "Unable to initialize DeckLinkSource";
 	// 	exit(-1);
 	// }
-
-	const int duration = durationArg.getValue();
 
 	if( duration > 0 ) {
 		LOG(INFO) << "Will log for " << duration << " seconds or press CTRL-C to stop.";
@@ -212,14 +206,14 @@ int main( int argc, char** argv )
 					// TODO Query for character even if not recording ...
 			}
 
-			if( imageOutArg.isSet() ) {
+			if( !imageOutput.empty() ) {
 				char outfile[128];
-				snprintf( outfile, 127, imageOutArg.getValue().c_str(), count );
+				snprintf( outfile, 127, imageOutput.c_str(), count );
 
 				imwrite( outfile, image );
 			}
 
-			loggerOutput.write( 0, image, count );
+			//loggerOutput.write( 0, image, count );
 			videoOutput.write( image );
 
 	 		++count;
@@ -237,7 +231,7 @@ int main( int argc, char** argv )
 	// 		//				std::this_thread::sleep_until( sleepTarget );
 	// 		//			}
 
-			if( numFramesArg.isSet() && count >= numFramesArg.getValue() ) keepGoing = false;
+			if( numFrames > 0 && count >= numFrames ) keepGoing = false;
 
 		}
 

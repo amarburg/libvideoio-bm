@@ -9,7 +9,7 @@ namespace libvideoio_bm {
   using std::string;
 
   DeckLinkSource::DeckLinkSource()
-  : DataSource(),
+  : ImageSource(),
   _initialized( false ),
   _deckLink( nullptr ),
   _deckLinkInput( nullptr ),
@@ -475,15 +475,16 @@ namespace libvideoio_bm {
 
 
 
-  int DeckLinkSource::getImage( int i, cv::Mat &mat )
+  int DeckLinkSource::getRawImage( int i, cv::Mat &mat )
   {
     switch(i) {
       case 0:
-      mat = _grabbedImage;
-      return 1;
-      break;
+        mat = _grabbedImage;
+        return 1;
+        break;
+        
       default:
-      return 0;
+        return 0;
     }
 
     return 0;

@@ -3,9 +3,10 @@ imports:
         git: https://github.com/amarburg/fips-googletest.git
     videoio:
         git: https://github.com/amarburg/libvideoio.git
-        branch: fips
     libbmsdi:
-        git: https://github.com/amarburg/lbbmsdi.git
+        git: https://gitub.com/amarburg/lbbmsdi.git
+    fips-CLI11:
+        git: https://github.com/amarburg/fips-CLI11.git
 
 exports:
   header-dirs:

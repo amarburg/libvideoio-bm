@@ -5,7 +5,7 @@
 
 #include <DeckLinkAPI.h>
 
-#include "libvideoio/DataSource.h"
+#include "libvideoio/ImageSource.h"
 
 #include "libbmsdi/bmsdi.h"
 
@@ -16,63 +16,62 @@
 
 namespace libvideoio_bm {
 
-  using libvideoio::DataSource;
+  using libvideoio::ImageSource;
   using libvideoio::ImageSize;
 
+  class DeckLinkSource : public libvideoio::ImageSource {
+  public:
 
-class DeckLinkSource : public libvideoio::DataSource {
-public:
+  	DeckLinkSource();
+    ~DeckLinkSource();
 
-	DeckLinkSource();
-  ~DeckLinkSource();
+    // These can be called expicitly before initialize(),
+    // Otherwise it will assume defaults.
+    bool setDeckLink( int cardno = 0 );
+    bool createVideoInput( const BMDDisplayMode desiredMode = bmdModeHD1080p2997, bool do3D = false );
+    bool createVideoOutput( const BMDDisplayMode desiredMode = bmdModeHD1080p2997, bool do3D = false );
 
-  // These can be called expicitly before initialize(),
-  // Otherwise it will assume defaults.
-  bool setDeckLink( int cardno = 0 );
-  bool createVideoInput( const BMDDisplayMode desiredMode = bmdModeHD1080p2997, bool do3D = false );
-  bool createVideoOutput( const BMDDisplayMode desiredMode = bmdModeHD1080p2997, bool do3D = false );
+    bool initialize();
+    bool initialized() const { return _initialized; }
 
-  bool initialize();
-  bool initialized() const { return _initialized; }
-
-  // These start and stop the input streams
-  bool startStreams();
-  void stopStreams();
+    // These start and stop the input streams
+    bool startStreams();
+    void stopStreams();
 
 
-  bool queueSDIBuffer( BMSDIBuffer *buffer );
+    bool queueSDIBuffer( BMSDIBuffer *buffer );
 
-  virtual int numFrames( void ) const { return -1; }
+    virtual int numFrames( void ) const { return -1; }
 
-  // // Delete copy operators
-  // DeckLinkSource( const DeckLinkSource & ) = delete;
-  // DeckLinkSource &operator=( const DeckLinkSource & ) = delete;
+    // // Delete copy operators
+    // DeckLinkSource( const DeckLinkSource & ) = delete;
+    // DeckLinkSource &operator=( const DeckLinkSource & ) = delete;
 
-  // Pull images from _InputHandler
-  virtual bool grab( void );
+    // Pull images from _InputHandler
+    virtual bool grab( void );
 
-  virtual int getImage( int i, cv::Mat &mat );
+    virtual int getRawImage( int i, cv::Mat &mat );
 
-  virtual ImageSize imageSize( void ) const;
+    virtual ImageSize imageSize( void ) const;
 
-protected:
+  protected:
 
-  cv::Mat _grabbedImage;
+    cv::Mat _grabbedImage;
 
-  bool _initialized;
+    bool _initialized;
 
-  // For now assume an object uses just one Decklink board
-  // Stupid COM model precludes use of auto ptrs
-  IDeckLink *_deckLink;
-  IDeckLinkInput *_deckLinkInput;
-  IDeckLinkOutput *_deckLinkOutput;
+    // For now assume an object uses just one Decklink board
+    // Stupid COM model precludes use of auto ptrs
+    IDeckLink *_deckLink;
+    IDeckLinkInput *_deckLinkInput;
+    IDeckLinkOutput *_deckLinkOutput;
 
-  BMDTimeScale _outputTimeScale;
-  BMDTimeValue _outputTimeValue;
+    BMDTimeScale _outputTimeScale;
+    BMDTimeValue _outputTimeValue;
 
-  InputHandler *_InputHandler;
-  OutputHandler *_OutputHandler;
+    InputHandler *_InputHandler;
+    OutputHandler *_OutputHandler;
 
-};
+  };
 
 }

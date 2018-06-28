@@ -4,7 +4,7 @@ fips_begin_app( bm_recorder cmdline )
     BmRecorder.cpp
   )
 
-  fips_deps( videoio_bm videoio )
+  fips_deps( videoio_bm videoio active_object  )
 
   fips_include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
